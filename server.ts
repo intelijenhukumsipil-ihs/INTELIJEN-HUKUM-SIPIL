@@ -1,6 +1,7 @@
 import express from "express";
 import path from "path";
 import dotenv from "dotenv";
+import fs from "fs";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
 
@@ -141,7 +142,9 @@ let cases = [
 ];
 
 // Seed Publications (News & Edukasi)
-let publications = [
+const NEWS_FILE_PATH = path.join(process.cwd(), "news_db.json");
+
+const initialPublications = [
   {
     id: "pub_1",
     title: "Panduan Advokasi Mandiri Kasus Penyerobotan Lahan Adat",
@@ -194,6 +197,31 @@ Masyarakat yang mengalami kejadian serupa dapat segera melayangkan aduan terenkr
     imageUrl: "https://images.unsplash.com/photo-1589829545856-d10d557cf95f?q=80&w=600&auto=format&fit=crop"
   }
 ];
+
+function loadPublications(): any[] {
+  try {
+    if (fs.existsSync(NEWS_FILE_PATH)) {
+      const fileContent = fs.readFileSync(NEWS_FILE_PATH, "utf-8");
+      return JSON.parse(fileContent);
+    } else {
+      fs.writeFileSync(NEWS_FILE_PATH, JSON.stringify(initialPublications, null, 2), "utf-8");
+      return initialPublications;
+    }
+  } catch (err) {
+    console.error("Error loading publications, falling back to initial data:", err);
+    return initialPublications;
+  }
+}
+
+function savePublications(data: any[]) {
+  try {
+    fs.writeFileSync(NEWS_FILE_PATH, JSON.stringify(data, null, 2), "utf-8");
+  } catch (err) {
+    console.error("Error saving publications:", err);
+  }
+}
+
+let publications = loadPublications();
 
 // Seed Members Data
 let members: any[] = [
@@ -391,6 +419,7 @@ app.post("/api/consultations", async (req, res) => {
 
 // API ROUTE: Get news/publications
 app.get("/api/news", (req, res) => {
+  publications = loadPublications();
   res.json(publications);
 });
 
@@ -412,7 +441,9 @@ app.post("/api/news", (req, res) => {
     imageUrl: imageUrl || "https://images.unsplash.com/photo-1450133064473-71024230f91b?q=80&w=600&auto=format&fit=crop"
   };
 
+  publications = loadPublications();
   publications.unshift(newPub);
+  savePublications(publications);
 
   // Add a sync log
   syncLogs.unshift({

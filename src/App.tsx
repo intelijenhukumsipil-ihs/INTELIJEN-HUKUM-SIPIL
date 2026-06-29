@@ -36,7 +36,14 @@ export default function App() {
   
   // Data State
   const [cases, setCases] = useState<CaseReport[]>([]);
-  const [newsList, setNewsList] = useState<NewsItem[]>([]);
+  const [newsList, setNewsList] = useState<NewsItem[]>(() => {
+    try {
+      const saved = localStorage.getItem("ihs_news_cache");
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
   const [members, setMembers] = useState<Member[]>([]);
   const [syncLogs, setSyncLogs] = useState<{ id: string; timestamp: string; action: string; detail: string; status: string }[]>([]);
 
@@ -55,6 +62,11 @@ export default function App() {
       if (resNews.ok) {
         const data = await resNews.json();
         setNewsList(data);
+        try {
+          localStorage.setItem("ihs_news_cache", JSON.stringify(data));
+        } catch (e) {
+          console.error("Gagal menyimpan cache berita:", e);
+        }
       }
 
       // Fetch members
@@ -128,7 +140,15 @@ export default function App() {
       });
       if (!res.ok) throw new Error("Gagal menerbitkan rilis pers.");
       const savedPub = await res.json();
-      setNewsList(prev => [savedPub, ...prev]);
+      setNewsList(prev => {
+        const updated = [savedPub, ...prev];
+        try {
+          localStorage.setItem("ihs_news_cache", JSON.stringify(updated));
+        } catch (e) {
+          console.error("Gagal menyimpan cache berita:", e);
+        }
+        return updated;
+      });
 
       // Refresh sync logs
       fetch("/api/sync-logs")
