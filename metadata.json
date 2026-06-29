@@ -1,0 +1,6 @@
+{
+  "name": "Intelijen Hukum Sipil (IHS)",
+  "description": "Aplikasi terpadu Intelijen Hukum Sipil untuk pelaporan kasus, investigasi mandiri, layanan bantuan hukum, edukasi publik, dan jejaring gerakan keadilan.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
