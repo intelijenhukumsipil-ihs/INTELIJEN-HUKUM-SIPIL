@@ -351,6 +351,7 @@ export default function App() {
               onNavigate={(tab) => setActiveTab(tab)} 
               cases={cases}
               syncLogs={syncLogs}
+              newsList={newsList}
             />
           )}
 

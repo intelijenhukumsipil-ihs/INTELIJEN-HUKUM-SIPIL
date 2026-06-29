@@ -114,7 +114,7 @@ export default function MediaEdukasiView({ newsList, onCreatePublication }: Medi
       setImageUrl("");
       setImageMode("upload");
     } catch (err: any) {
-      setDraftError("Koneksi gagal atau validasi server www.ihsid.org ditolak.");
+      setDraftError("Gagal mempublikasikan rilis berita harian.");
     } finally {
       setIsSubmitting(false);
     }
@@ -329,7 +329,7 @@ export default function MediaEdukasiView({ newsList, onCreatePublication }: Medi
                   disabled={isSubmitting}
                   className="px-6 py-2 bg-red-700 hover:bg-red-600 text-white rounded-lg text-xs font-mono font-bold flex items-center gap-1.5 cursor-pointer"
                 >
-                  {isSubmitting ? "MELUNCURKAN..." : "SINKRONKAN RILIS PUBLIK"}
+                  {isSubmitting ? "MENERBITKAN..." : "PUBLIKASIKAN KE BERANDA"}
                 </button>
               </div>
             </form>

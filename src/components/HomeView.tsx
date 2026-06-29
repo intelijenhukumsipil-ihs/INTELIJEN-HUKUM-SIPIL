@@ -28,9 +28,10 @@ interface HomeViewProps {
   onNavigate: (tab: string) => void;
   cases: CaseReport[];
   syncLogs: { id: string; timestamp: string; action: string; detail: string; status: string }[];
+  newsList: any[];
 }
 
-export default function HomeView({ onNavigate, cases, syncLogs }: HomeViewProps) {
+export default function HomeView({ onNavigate, cases, syncLogs, newsList }: HomeViewProps) {
   const [currentTime, setCurrentTime] = useState(new Date());
 
   useEffect(() => {
@@ -47,27 +48,12 @@ export default function HomeView({ onNavigate, cases, syncLogs }: HomeViewProps)
   const completedCases = cases.filter(c => c.status === "selesai").length;
 
   // News & Sync states
-  const [news, setNews] = useState<any[]>([]);
   const [selectedArticle, setSelectedArticle] = useState<any | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncLogsConsole, setSyncLogsConsole] = useState<string[]>([]);
   const [showSyncSuccess, setShowSyncSuccess] = useState(false);
 
-  const fetchNews = async () => {
-    try {
-      const res = await fetch("/api/news");
-      if (res.ok) {
-        const data = await res.json();
-        setNews(data);
-      }
-    } catch (err) {
-      console.error("Gagal mengambil berita:", err);
-    }
-  };
-
-  useEffect(() => {
-    fetchNews();
-  }, []);
+  const news = newsList;
 
   const handleManualSync = () => {
     if (isSyncing) return;
@@ -76,11 +62,10 @@ export default function HomeView({ onNavigate, cases, syncLogs }: HomeViewProps)
     setSyncLogsConsole([]);
 
     const logs = [
-      "⚡ [SYSTEM] Menginisialisasi jembatan sinkronisasi klandestin...",
-      "📡 [CONNECT] Menghubungkan ke secure gateway: https://www.ihsid.org/api/v1/news",
-      "🔑 [AUTH] Handshake keamanan TLS 1.3 berhasil disahkan...",
-      "📥 [FETCH] Mengunduh database rilis pers, regulasi sipil, & berita harian...",
-      "🔄 [MERGE] Mengintegrasikan rilis pers terbaru ke database lokal..."
+      "⚡ [SYSTEM] Membuka repositori warta hukum lokal...",
+      "📂 [DATABASE] Menghubungkan ke database berita & rilis pers beranda...",
+      "📥 [FETCH] Memperbarui daftar rilis berita harian & artikel edukasi...",
+      "🔄 [SYNC] Sinkronisasi warta publik ke beranda berhasil diselesaikan!"
     ];
 
     let currentLogIndex = 0;
@@ -93,7 +78,6 @@ export default function HomeView({ onNavigate, cases, syncLogs }: HomeViewProps)
         setTimeout(() => {
           setIsSyncing(false);
           setShowSyncSuccess(true);
-          fetchNews(); // Pull newest news
           // Hide success notice after 4 seconds
           setTimeout(() => setShowSyncSuccess(false), 4000);
         }, 800);
@@ -396,7 +380,7 @@ export default function HomeView({ onNavigate, cases, syncLogs }: HomeViewProps)
                   WARTA HARIAN & RILIS PERS PENTING
                 </h3>
                 <p className="text-xs text-slate-400">
-                  Rilisan berita penting hukum & keadilan nasional yang disinkronkan langsung dari website inti <span className="text-red-500 font-mono">www.ihsid.org</span>
+                  Rilisan berita penting hukum & keadilan nasional yang dipublikasikan secara langsung ke portal beranda IHS.
                 </p>
               </div>
               <button
@@ -406,7 +390,7 @@ export default function HomeView({ onNavigate, cases, syncLogs }: HomeViewProps)
                 className={`px-4 py-2 bg-slate-900 border border-slate-800 hover:border-red-900/60 text-xs font-bold text-slate-200 hover:text-white rounded-lg flex items-center gap-2 transition shrink-0 cursor-pointer ${isSyncing ? "opacity-75" : ""}`}
               >
                 <RefreshCw className={`w-3.5 h-3.5 text-red-500 ${isSyncing ? "animate-spin" : ""}`} />
-                {isSyncing ? "Menyinkronkan..." : "SINKRONKAN BERITA"}
+                {isSyncing ? "Memperbarui..." : "MUAT ULANG BERITA"}
               </button>
             </div>
 
@@ -414,7 +398,7 @@ export default function HomeView({ onNavigate, cases, syncLogs }: HomeViewProps)
             {isSyncing && (
               <div className="bg-[#050505] border border-red-900/30 rounded-lg p-3 font-mono text-[10px] space-y-1 text-slate-300">
                 <div className="flex items-center justify-between text-red-500 font-bold border-b border-slate-850 pb-1 mb-1.5 uppercase">
-                  <span>Terminal Sinkronisasi Berita IHS</span>
+                  <span>Terminal Pembaharuan Warta IHS</span>
                   <span className="flex h-1.5 w-1.5 rounded-full bg-red-500 animate-ping"></span>
                 </div>
                 {syncLogsConsole.map((log, i) => (
@@ -438,7 +422,7 @@ export default function HomeView({ onNavigate, cases, syncLogs }: HomeViewProps)
                 className="bg-green-950/20 border border-green-900/40 text-green-400 text-xs py-2 px-3 rounded-lg flex items-center gap-2"
               >
                 <CheckCircle2 className="w-4 h-4 shrink-0 text-green-500" />
-                <span><strong>Sinkronisasi Sukses!</strong> Warta berita harian berhasil disinkronkan sepenuhnya dari <strong>www.ihsid.org</strong></span>
+                <span><strong>Pembaharuan Sukses!</strong> Warta berita harian berhasil diselaraskan dan diperbarui sepenuhnya di beranda.</span>
               </motion.div>
             )}
 
