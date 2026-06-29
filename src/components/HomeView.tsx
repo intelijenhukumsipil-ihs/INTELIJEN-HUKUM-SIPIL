@@ -9,9 +9,14 @@ import {
   ExternalLink,
   MessageCircle,
   AlertOctagon,
-  Zap
+  Zap,
+  Award,
+  UserCheck,
+  MessageSquareCode
 } from "lucide-react";
+import { motion } from "motion/react";
 import { CaseReport } from "../types";
+import mascotAvatar from "../assets/images/ihs_mascot_avatar_1782707315561.jpg";
 
 interface HomeViewProps {
   onNavigate: (tab: string) => void;
@@ -49,9 +54,25 @@ export default function HomeView({ onNavigate, cases, syncLogs }: HomeViewProps)
             Portal Intelijen Sipil Resmi
           </div>
           
-          <h1 className="text-3xl sm:text-5xl font-extrabold tracking-tight text-white font-sans">
+          <motion.h1 
+            initial={{ letterSpacing: "0.02em" }}
+            animate={{ 
+              letterSpacing: ["0.02em", "0.05em", "0.02em"],
+              textShadow: [
+                "0 0 0px rgba(220, 38, 38, 0)",
+                "0 0 15px rgba(220, 38, 38, 0.4)",
+                "0 0 0px rgba(220, 38, 38, 0)"
+              ]
+            }}
+            transition={{ 
+              duration: 4, 
+              repeat: Infinity,
+              ease: "easeInOut"
+            }}
+            className="text-3xl sm:text-5xl font-extrabold tracking-tight text-white font-sans"
+          >
             INTELIJEN HUKUM SIPIL <span className="text-red-600">(IHS)</span>
-          </h1>
+          </motion.h1>
           
           <p className="text-md sm:text-xl font-medium text-slate-450 italic">
             &ldquo;Mengungkap Fakta, Mengawal Keadilan, Menegakkan Tanpa Kompromi&rdquo;
@@ -267,10 +288,98 @@ export default function HomeView({ onNavigate, cases, syncLogs }: HomeViewProps)
               </li>
             </ul>
           </div>
+
+          {/* DPP LBH Delik Hukum Negara Info Card */}
+          <div className="bg-[#0a0a0a] border border-slate-800 rounded-xl p-6 relative overflow-hidden shadow-xl">
+            <div className="absolute top-0 right-0 p-4 opacity-5">
+              <Award className="w-32 h-32 text-red-500" />
+            </div>
+            
+            <div className="flex flex-col sm:flex-row items-center sm:items-start gap-5">
+              <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-red-850 to-red-600 flex items-center justify-center font-bold text-white text-xl shadow-lg shadow-red-950/40 shrink-0 border border-slate-750 font-mono">
+                DPP
+              </div>
+              <div className="space-y-2 text-center sm:text-left flex-1">
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-red-950/40 border border-red-900/40 text-red-500 rounded-full text-[10px] font-mono font-bold tracking-wider uppercase">
+                  <UserCheck className="w-3.5 h-3.5" />
+                  KOMANDO UTAMA NASIONAL
+                </div>
+                <h3 className="text-sm font-black text-white uppercase tracking-wider font-mono leading-snug">
+                  DEWAN PIMPINAN PUSAT LEMBAGA BANTUAN HUKUM DELIK HUKUM NEGARA
+                </h3>
+                <div className="pt-1.5 pb-2 border-y border-slate-850 flex flex-wrap gap-x-6 gap-y-2 items-center justify-center sm:justify-start">
+                  <div>
+                    <span className="text-[10px] text-slate-500 font-mono uppercase tracking-wider block">KETUA UMUM:</span>
+                    <span className="text-sm font-extrabold text-red-500 font-mono tracking-wide">KAPTEN IWAN</span>
+                  </div>
+                  <div className="hidden sm:block h-6 w-[1px] bg-slate-850"></div>
+                  <div>
+                    <span className="text-[10px] text-slate-500 font-mono uppercase tracking-wider block">YURIDIKSI:</span>
+                    <span className="text-xs font-bold text-slate-300 font-sans">REPUBLIK INDONESIA</span>
+                  </div>
+                </div>
+                <p className="text-xs text-slate-400 leading-relaxed font-sans pt-1">
+                  Melalui kepemimpinan komando terpusat LBH Delik Hukum Negara, kami berkomitmen penuh memberikan bantuan hukum yang tangguh, 
+                  pro-bono untuk warga tertindas, serta menggalang koordinasi lapangan dengan Satgas Intelijen Hukum Sipil (IHS) di seluruh wilayah nusantara.
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Right Column: Central Server Sync Status (www.ihsid.org) & Live Time */}
         <div className="space-y-6">
+          {/* Interactive AI Mascot Q&A Portal */}
+          <div className="bg-[#0a0a0a] border border-slate-800 rounded-xl p-5 relative overflow-hidden shadow-xl shadow-black/30 text-left">
+            {/* Pulsing live badge */}
+            <div className="absolute top-4 right-4 flex items-center gap-1.5 bg-green-950/40 border border-green-900/40 px-2 py-0.5 rounded-full text-[9px] font-mono font-bold text-green-400">
+              <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-ping"></span>
+              WIRA ONLINE
+            </div>
+
+            <div className="space-y-4 pt-1">
+              <div className="flex items-center gap-3">
+                <div className="relative shrink-0">
+                  <div className="w-12 h-12 rounded-full overflow-hidden border border-slate-800 bg-[#050505]">
+                    <img 
+                      src={mascotAvatar} 
+                      alt="WIRA AI Mascot" 
+                      className="w-full h-full object-cover"
+                      referrerPolicy="no-referrer"
+                    />
+                  </div>
+                  <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-[#0a0a0a] rounded-full"></span>
+                </div>
+                <div>
+                  <h4 className="text-xs font-bold text-white uppercase tracking-wider font-mono">
+                    WIRA SIBI - SANG PEMBELA
+                  </h4>
+                  <p className="text-[10px] text-slate-500 font-mono">
+                    Maskot & Advokat Virtual IHS
+                  </p>
+                </div>
+              </div>
+
+              {/* Chat speech bubble */}
+              <div className="relative bg-[#050505] border border-slate-850 p-3.5 rounded-xl rounded-tl-none text-xs text-slate-300 leading-relaxed font-sans">
+                {/* Speech arrow */}
+                <div className="absolute -left-[5px] top-0 w-0 h-0 border-t-[8px] border-t-[#050505] border-l-[6px] border-l-transparent"></div>
+                <p>
+                  &ldquo;Halo Rakyat Indonesia! Saya <strong>WIRA</strong>, maskot sekaligus asisten hukum cerdas Anda. Ada sengketa pertanahan, kesewenang-wenangan aparat, atau sengketa lainnya? Mari konsultasikan landasan hukumnya bersama saya sekarang!&rdquo;
+                </p>
+              </div>
+
+              {/* Action Button to Q&A tab */}
+              <button
+                type="button"
+                onClick={() => onNavigate("konsultasi")}
+                className="w-full py-2.5 bg-red-750 hover:bg-red-700 text-white font-mono font-bold text-xs rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-md shadow-red-950/30 group"
+              >
+                <MessageSquareCode className="w-4 h-4 text-red-300 group-hover:scale-110 transition" />
+                TANYA JAWAB SEKARANG (AKTIF)
+              </button>
+            </div>
+          </div>
           {/* Live UTC Clock & Timezone Widget */}
           <div className="bg-[#0a0a0a] border border-slate-800 rounded-xl p-4 text-center">
             <div className="text-xs text-slate-500 font-mono tracking-widest uppercase">WAKTU AKTIF SISTEM</div>
