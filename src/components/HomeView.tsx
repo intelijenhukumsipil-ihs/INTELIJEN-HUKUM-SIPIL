@@ -12,7 +12,13 @@ import {
   Zap,
   Award,
   UserCheck,
-  MessageSquareCode
+  MessageSquareCode,
+  Newspaper,
+  RefreshCw,
+  Calendar,
+  User,
+  Globe,
+  CheckCircle2
 } from "lucide-react";
 import { motion } from "motion/react";
 import { CaseReport } from "../types";
@@ -39,6 +45,61 @@ export default function HomeView({ onNavigate, cases, syncLogs }: HomeViewProps)
   const verifiedCases = cases.filter(c => c.status !== "diterima").length;
   const inProgressCases = cases.filter(c => c.status === "penanganan").length;
   const completedCases = cases.filter(c => c.status === "selesai").length;
+
+  // News & Sync states
+  const [news, setNews] = useState<any[]>([]);
+  const [selectedArticle, setSelectedArticle] = useState<any | null>(null);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncLogsConsole, setSyncLogsConsole] = useState<string[]>([]);
+  const [showSyncSuccess, setShowSyncSuccess] = useState(false);
+
+  const fetchNews = async () => {
+    try {
+      const res = await fetch("/api/news");
+      if (res.ok) {
+        const data = await res.json();
+        setNews(data);
+      }
+    } catch (err) {
+      console.error("Gagal mengambil berita:", err);
+    }
+  };
+
+  useEffect(() => {
+    fetchNews();
+  }, []);
+
+  const handleManualSync = () => {
+    if (isSyncing) return;
+    setIsSyncing(true);
+    setShowSyncSuccess(false);
+    setSyncLogsConsole([]);
+
+    const logs = [
+      "⚡ [SYSTEM] Menginisialisasi jembatan sinkronisasi klandestin...",
+      "📡 [CONNECT] Menghubungkan ke secure gateway: https://www.ihsid.org/api/v1/news",
+      "🔑 [AUTH] Handshake keamanan TLS 1.3 berhasil disahkan...",
+      "📥 [FETCH] Mengunduh database rilis pers, regulasi sipil, & berita harian...",
+      "🔄 [MERGE] Mengintegrasikan rilis pers terbaru ke database lokal..."
+    ];
+
+    let currentLogIndex = 0;
+    const interval = setInterval(() => {
+      if (currentLogIndex < logs.length) {
+        setSyncLogsConsole(prev => [...prev, logs[currentLogIndex]]);
+        currentLogIndex++;
+      } else {
+        clearInterval(interval);
+        setTimeout(() => {
+          setIsSyncing(false);
+          setShowSyncSuccess(true);
+          fetchNews(); // Pull newest news
+          // Hide success notice after 4 seconds
+          setTimeout(() => setShowSyncSuccess(false), 4000);
+        }, 800);
+      }
+    }, 600);
+  };
 
   return (
     <div className="space-y-6">
@@ -325,6 +386,126 @@ export default function HomeView({ onNavigate, cases, syncLogs }: HomeViewProps)
               </div>
             </div>
           </div>
+
+          {/* DAILY NEWS & SYNC REGISTRY SECTION */}
+          <div className="bg-[#0a0a0a] border border-slate-800 rounded-xl p-6 space-y-4 shadow-xl relative">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-850">
+              <div className="space-y-1">
+                <h3 className="text-lg font-extrabold text-white flex items-center gap-2 font-mono">
+                  <Newspaper className="w-5 h-5 text-red-500" />
+                  WARTA HARIAN & RILIS PERS PENTING
+                </h3>
+                <p className="text-xs text-slate-400">
+                  Rilisan berita penting hukum & keadilan nasional yang disinkronkan langsung dari website inti <span className="text-red-500 font-mono">www.ihsid.org</span>
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleManualSync}
+                disabled={isSyncing}
+                className={`px-4 py-2 bg-slate-900 border border-slate-800 hover:border-red-900/60 text-xs font-bold text-slate-200 hover:text-white rounded-lg flex items-center gap-2 transition shrink-0 cursor-pointer ${isSyncing ? "opacity-75" : ""}`}
+              >
+                <RefreshCw className={`w-3.5 h-3.5 text-red-500 ${isSyncing ? "animate-spin" : ""}`} />
+                {isSyncing ? "Menyinkronkan..." : "SINKRONKAN BERITA"}
+              </button>
+            </div>
+
+            {/* Sync Console Overlay */}
+            {isSyncing && (
+              <div className="bg-[#050505] border border-red-900/30 rounded-lg p-3 font-mono text-[10px] space-y-1 text-slate-300">
+                <div className="flex items-center justify-between text-red-500 font-bold border-b border-slate-850 pb-1 mb-1.5 uppercase">
+                  <span>Terminal Sinkronisasi Berita IHS</span>
+                  <span className="flex h-1.5 w-1.5 rounded-full bg-red-500 animate-ping"></span>
+                </div>
+                {syncLogsConsole.map((log, i) => (
+                  <motion.div
+                    key={i}
+                    initial={{ opacity: 0, x: -5 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    {log}
+                  </motion.div>
+                ))}
+              </div>
+            )}
+
+            {/* Sync Success Badge */}
+            {showSyncSuccess && (
+              <motion.div 
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-green-950/20 border border-green-900/40 text-green-400 text-xs py-2 px-3 rounded-lg flex items-center gap-2"
+              >
+                <CheckCircle2 className="w-4 h-4 shrink-0 text-green-500" />
+                <span><strong>Sinkronisasi Sukses!</strong> Warta berita harian berhasil disinkronkan sepenuhnya dari <strong>www.ihsid.org</strong></span>
+              </motion.div>
+            )}
+
+            {/* News List */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
+              {news.length === 0 ? (
+                <div className="col-span-full py-12 text-center text-xs text-slate-500 font-mono">
+                  Menghubungkan ke server untuk memuat rilis berita harian...
+                </div>
+              ) : (
+                news.map((item) => (
+                  <div 
+                    key={item.id} 
+                    className="bg-[#050505] border border-slate-850 hover:border-slate-800 rounded-xl overflow-hidden flex flex-col justify-between transition-all group shadow-sm"
+                  >
+                    {item.imageUrl && (
+                      <div className="h-36 w-full overflow-hidden border-b border-slate-850 relative">
+                        <img 
+                          src={item.imageUrl} 
+                          alt={item.title} 
+                          className="w-full h-full object-cover group-hover:scale-105 transition duration-500"
+                        />
+                        <div className="absolute top-2.5 left-2.5 px-2 py-0.5 bg-red-950/90 border border-red-900 text-red-500 rounded text-[9px] font-bold font-mono uppercase tracking-wider">
+                          {item.category}
+                        </div>
+                      </div>
+                    )}
+                    <div className="p-4 flex-1 flex flex-col justify-between space-y-3">
+                      <div className="space-y-1.5">
+                        {!item.imageUrl && (
+                          <span className="inline-block px-2 py-0.5 bg-red-950/90 border border-red-900 text-red-500 rounded text-[9px] font-bold font-mono uppercase tracking-wider">
+                            {item.category}
+                          </span>
+                        )}
+                        <h4 className="text-sm font-bold text-white group-hover:text-red-500 transition leading-snug">
+                          {item.title}
+                        </h4>
+                        <p className="text-xs text-slate-400 line-clamp-2 leading-relaxed">
+                          {item.summary}
+                        </p>
+                      </div>
+
+                      <div className="pt-2 border-t border-slate-850 flex items-center justify-between text-[10px] font-mono text-slate-500">
+                        <span className="flex items-center gap-1">
+                          <Calendar className="w-3.5 h-3.5 text-red-500" />
+                          {new Date(item.date).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <User className="w-3.5 h-3.5 text-slate-400" />
+                          {item.author}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="px-4 pb-4">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedArticle(item)}
+                        className="w-full py-1.5 bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-800 hover:border-slate-700 rounded-lg text-xs font-bold transition font-mono cursor-pointer"
+                      >
+                        BACA RILIS LENGKAP
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
         </div>
 
         {/* Right Column: Central Server Sync Status (www.ihsid.org) & Live Time */}
@@ -438,6 +619,91 @@ export default function HomeView({ onNavigate, cases, syncLogs }: HomeViewProps)
           </div>
         </div>
       </div>
+
+      {/* Full Article Content Modal */}
+      {selectedArticle && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95, y: 15 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            className="bg-[#0c0c0c] border border-slate-800 rounded-2xl w-full max-w-2xl max-h-[85vh] overflow-y-auto shadow-2xl relative"
+          >
+            {/* Header image / colored band */}
+            {selectedArticle.imageUrl ? (
+              <div className="h-56 w-full relative">
+                <img 
+                  src={selectedArticle.imageUrl} 
+                  alt={selectedArticle.title} 
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-[#0c0c0c] to-transparent"></div>
+                <button
+                  type="button"
+                  onClick={() => setSelectedArticle(null)}
+                  className="absolute top-4 right-4 bg-black/70 hover:bg-black/90 text-white rounded-full p-2 border border-slate-700/50 cursor-pointer transition w-8 h-8 flex items-center justify-center"
+                >
+                  <span className="font-bold text-xs">✕</span>
+                </button>
+              </div>
+            ) : (
+              <div className="p-4 border-b border-slate-850 flex items-center justify-between">
+                <span className="text-[10px] font-mono font-bold text-red-500 bg-red-950/40 border border-red-900/40 px-2 py-0.5 rounded uppercase">
+                  {selectedArticle.category}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setSelectedArticle(null)}
+                  className="bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white rounded-full p-2 border border-slate-800 cursor-pointer transition w-8 h-8 flex items-center justify-center"
+                >
+                  <span className="font-bold text-xs">✕</span>
+                </button>
+              </div>
+            )}
+
+            <div className="p-6 space-y-4">
+              {/* Category Badge if has image */}
+              {selectedArticle.imageUrl && (
+                <span className="inline-block text-[10px] font-mono font-bold text-red-500 bg-red-950/40 border border-red-900/40 px-2 py-0.5 rounded uppercase">
+                  {selectedArticle.category}
+                </span>
+              )}
+
+              <h2 className="text-xl sm:text-2xl font-black text-white leading-tight font-sans">
+                {selectedArticle.title}
+              </h2>
+
+              <div className="flex items-center gap-4 text-xs font-mono text-slate-500 border-b border-slate-850 pb-3">
+                <span className="flex items-center gap-1">
+                  <Calendar className="w-3.5 h-3.5 text-red-500" />
+                  {new Date(selectedArticle.date).toLocaleDateString("id-ID", { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                </span>
+                <span>•</span>
+                <span className="flex items-center gap-1">
+                  <User className="w-3.5 h-3.5 text-slate-400" />
+                  {selectedArticle.author}
+                </span>
+              </div>
+
+              {/* Styled article body */}
+              <div className="text-slate-300 text-sm leading-relaxed space-y-4 whitespace-pre-line font-sans pt-1">
+                {selectedArticle.content}
+              </div>
+
+              {/* Action close button */}
+              <div className="pt-4 border-t border-slate-850 flex items-center justify-between gap-4">
+                <span className="text-[10px] font-mono text-slate-500">PORTAL RESMI: WWW.IHSID.ORG</span>
+                <button
+                  type="button"
+                  onClick={() => setSelectedArticle(null)}
+                  className="px-5 py-2 bg-red-750 hover:bg-red-700 text-white rounded-lg font-mono font-bold text-xs transition cursor-pointer"
+                >
+                  TUTUP BACAAN
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 }

@@ -13,7 +13,10 @@ import {
   Rss,
   PenTool,
   CheckCircle,
-  X
+  X,
+  UploadCloud,
+  Image,
+  Trash2
 } from "lucide-react";
 import { NewsItem } from "../types";
 
@@ -35,6 +38,46 @@ export default function MediaEdukasiView({ newsList, onCreatePublication }: Medi
   const [imageUrl, setImageUrl] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [draftError, setDraftError] = useState("");
+
+  // Upload state & drag handlers
+  const [imageMode, setImageMode] = useState<"upload" | "url">("upload");
+  const [isDragging, setIsDragging] = useState(false);
+
+  const handleFileChange = (file: File) => {
+    if (!file) return;
+    if (!["image/jpeg", "image/png", "image/jpg"].includes(file.type)) {
+      setDraftError("Format berkas harus berupa JPG atau PNG.");
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) { // 10MB limit
+      setDraftError("Ukuran berkas gambar tidak boleh melebihi 10MB.");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (uploadEvent) => {
+      if (uploadEvent.target?.result) {
+        setImageUrl(uploadEvent.target.result as string);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = () => {
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      handleFileChange(e.dataTransfer.files[0]);
+    }
+  };
 
   const handleCopyLink = (pubId: string, title: string) => {
     const shareText = `*${title}*\n\nBaca rilis pers resmi selengkapnya di platform Intelijen Hukum Sipil (IHS): www.ihsid.org`;
@@ -69,6 +112,7 @@ export default function MediaEdukasiView({ newsList, onCreatePublication }: Medi
       setSummary("");
       setContent("");
       setImageUrl("");
+      setImageMode("upload");
     } catch (err: any) {
       setDraftError("Koneksi gagal atau validasi server www.ihsid.org ditolak.");
     } finally {
@@ -122,13 +166,13 @@ export default function MediaEdukasiView({ newsList, onCreatePublication }: Medi
                 </div>
               )}
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-left">
-                <div className="space-y-1">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-left">
+                <div className="sm:col-span-1 space-y-1">
                   <label className="text-xs text-slate-400 font-semibold block">Kategori Rilis:</label>
                   <select
                     value={category}
                     onChange={(e) => setCategory(e.target.value as any)}
-                    className="w-full bg-[#050505] border border-slate-800 text-xs rounded p-2 text-slate-200 outline-none focus:border-red-600"
+                    className="w-full h-9 bg-[#050505] border border-slate-800 text-xs rounded p-2 text-slate-200 outline-none focus:border-red-600"
                   >
                     <option value="Rilis Pers">Rilis Pers Resmi</option>
                     <option value="Edukasi">Edukasi Hukum Mandiri</option>
@@ -136,15 +180,103 @@ export default function MediaEdukasiView({ newsList, onCreatePublication }: Medi
                   </select>
                 </div>
 
-                <div className="space-y-1">
-                  <label className="text-xs text-slate-400 font-semibold block">URL Gambar Sampul (Opsional):</label>
-                  <input 
-                    type="text" 
-                    placeholder="Contoh: https://images.unsplash.com/..."
-                    value={imageUrl}
-                    onChange={(e) => setImageUrl(e.target.value)}
-                    className="w-full bg-[#050505] border border-slate-800 text-xs rounded p-2 text-slate-200 outline-none focus:border-red-600"
-                  />
+                <div className="sm:col-span-2 space-y-1">
+                  <label className="text-xs text-slate-400 font-semibold block flex items-center justify-between">
+                    <span>Metode Media Sampul:</span>
+                    <span className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setImageMode("upload")}
+                        className={`px-2 py-0.5 text-[10px] font-mono font-bold rounded transition cursor-pointer ${imageMode === "upload" ? "bg-red-950 text-red-500 border border-red-900" : "bg-slate-900 text-slate-400 border border-slate-800"}`}
+                      >
+                        UNGGAH GAMBAR (JPG/PNG)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setImageMode("url")}
+                        className={`px-2 py-0.5 text-[10px] font-mono font-bold rounded transition cursor-pointer ${imageMode === "url" ? "bg-red-950 text-red-500 border border-red-900" : "bg-slate-900 text-slate-400 border border-slate-800"}`}
+                      >
+                        ALAMAT URL GAMBAR
+                      </button>
+                    </span>
+                  </label>
+
+                  {imageMode === "upload" ? (
+                    <div className="space-y-2">
+                      {/* Drag & Drop Zone */}
+                      <div
+                        onDragOver={handleDragOver}
+                        onDragLeave={handleDragLeave}
+                        onDrop={handleDrop}
+                        className={`border-2 border-dashed rounded-xl p-4 flex flex-col items-center justify-center gap-1.5 transition text-center cursor-pointer relative min-h-[96px] ${
+                          isDragging 
+                            ? "border-red-500 bg-red-950/10" 
+                            : imageUrl 
+                              ? "border-slate-850 bg-slate-950/10" 
+                              : "border-slate-800 hover:border-slate-700 bg-[#050505]"
+                        }`}
+                        onClick={() => document.getElementById("file-upload-input")?.click()}
+                      >
+                        <input
+                          id="file-upload-input"
+                          type="file"
+                          accept="image/png, image/jpeg, image/jpg"
+                          className="hidden"
+                          onChange={(e) => {
+                            if (e.target.files && e.target.files[0]) {
+                              handleFileChange(e.target.files[0]);
+                            }
+                          }}
+                        />
+                        
+                        {imageUrl ? (
+                          <div className="flex items-center gap-4 w-full px-2">
+                            <div className="w-16 h-12 rounded border border-slate-800 overflow-hidden shrink-0 relative bg-black">
+                              <img src={imageUrl} alt="Pratinjau" className="w-full h-full object-cover" />
+                            </div>
+                            <div className="flex-1 text-left">
+                              <p className="text-[11px] font-bold text-white line-clamp-1">Media Terpilih (Siap Unggah)</p>
+                              <p className="text-[10px] text-slate-500 font-mono">Format JPG/PNG • Terkompresi</p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setImageUrl("");
+                              }}
+                              className="p-1.5 bg-red-950/40 hover:bg-red-900/60 text-red-500 rounded border border-red-900/40 cursor-pointer transition flex items-center justify-center shrink-0"
+                              title="Hapus gambar"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        ) : (
+                          <>
+                            <UploadCloud className="w-6 h-6 text-slate-500" />
+                            <p className="text-[11px] text-slate-300">
+                              <span className="text-red-500 font-bold">Klik untuk memilih</span> atau seret file gambar ke sini
+                            </p>
+                            <p className="text-[9px] text-slate-500 font-mono">
+                              MENDUKUNG FORMAT JPG, JPEG, ATAU PNG (MAKS 10MB)
+                            </p>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="relative">
+                      <input 
+                        type="text" 
+                        placeholder="Masukkan alamat URL gambar (Contoh: https://images.unsplash.com/...)"
+                        value={imageUrl.startsWith("data:") ? "" : imageUrl}
+                        onChange={(e) => setImageUrl(e.target.value)}
+                        className="w-full h-9 bg-[#050505] border border-slate-800 text-xs rounded p-2 text-slate-200 outline-none focus:border-red-600 pr-10"
+                      />
+                      <span className="absolute right-3 top-2.5">
+                        <Image className="w-4 h-4 text-slate-500" />
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
 
