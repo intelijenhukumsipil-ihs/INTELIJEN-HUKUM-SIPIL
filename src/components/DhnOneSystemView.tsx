@@ -27,6 +27,138 @@ export default function DhnOneSystemView() {
   const [activeTabPDN, setActiveTabPDN] = useState<"pdn" | "pelayanan">("pdn");
   const [selectedFlowStep, setSelectedFlowStep] = useState<number>(0);
 
+  // Pillar Interactive Simulation States
+  const [isSimulatingPillar, setIsSimulatingPillar] = useState(false);
+  const [pillarLogs, setPillarLogs] = useState<string[]>([]);
+  
+  // Custom interactive state for KTA digital card generation
+  const [ktaNama, setKtaNama] = useState("");
+  const [ktaNik, setKtaNik] = useState("");
+  const [ktaRole, setKtaRole] = useState("Anggota / Pembela Hukum");
+  const [ktaGenerated, setKtaGenerated] = useState(false);
+  const [isGeneratingKta, setIsGeneratingKta] = useState(false);
+
+  const pillarSimulations: Record<number, {
+    fullName: string;
+    status: string;
+    metrics: string[];
+    actionName: string;
+    logs: string[];
+  }> = {
+    1: {
+      fullName: "Integrasi Satu Data Nasional LBH DHN",
+      status: "TERVERIFIKASI",
+      metrics: ["25 DPW Terkoneksi", "98.9% Format Konsisten", "Sync Otomatis: Aktif"],
+      actionName: "LAKUKAN REKONSILIASI DATA REGIONAL",
+      logs: [
+        "🔄 Memulai rekonsiliasi data pengurus wilayah Sumatra Barat...",
+        "📡 Mendownload 45 data anggota terdaftar baru...",
+        "🛡️ Enkripsi baris data menggunakan kunci SHA-256...",
+        "🟢 Sinkronisasi sukses: 45 data baru masuk ke Pusat Data Nasional!"
+      ]
+    },
+    2: {
+      fullName: "Sistem Manajemen Identitas Digital Anggota (SMID)",
+      status: "TERENKRIPSI",
+      metrics: ["1,420 KTA Terbit", "Keunikan ID: 100%", "Dual-Factor Auth"],
+      actionName: "TERBITKAN KARTU ANGGOTA DIGITAL",
+      logs: [
+        "🆔 Menyiapkan template Kartu Tanda Anggota (KTA) Digital...",
+        "👤 Menghubungkan ke biodata pendaftar terverifikasi...",
+        "🔐 Menyematkan Kode QR Kriptografis Unik...",
+        "🎴 Sukses: KTA Digital dengan QR Code terbit untuk Kader LBH!"
+      ]
+    },
+    3: {
+      fullName: "Portal Layanan Administrasi Terpadu",
+      status: "ONLINE",
+      metrics: ["9 Layanan Aktif", "Rata-rata Proses: 5 Menit", "Port: 3000 Ingress"],
+      actionName: "PING & CHECK PORTAL INGRESS ROUTING",
+      logs: [
+        "🌐 Memulai pengujian Ingress Gateway Portal...",
+        "⚡ Mengirim paket handshake HTTP ke api.ihsid.org...",
+        "🔒 Memverifikasi kelaikan enkripsi SSL/TLS 1.3...",
+        "🟢 Sukses: Portal Ingress merespon dalam 12ms. Status: AMAN!"
+      ]
+    },
+    4: {
+      fullName: "Pusat Perlindungan Data & Kriptografi Organisasi",
+      status: "SANGAT AMAN",
+      metrics: ["AES-256 Enkripsi", "0 Kebocoran Data", "Deteksi Intrusi: On"],
+      actionName: "MULAI DETEKSI PENYUSUPAN FIREWALL",
+      logs: [
+        "🛡️ Mengaktifkan firewall deteksi ancaman real-time...",
+        "🔍 Memindai 100 port akses database pusat...",
+        "✅ Hasil pemindaian: 0 celah ditemukan, seluruh enkripsi utuh...",
+        "🔒 Sukses: Status jaringan dikunci dalam mode Aman Maksimal!"
+      ]
+    },
+    5: {
+      fullName: "Transparansi Anggaran & Laporan Kinerja Publik",
+      status: "TERBUKA",
+      metrics: ["100% Laporan Diunggah", "Audit Eksternal: WTP", "Aksesibilitas: Publik"],
+      actionName: "GENERATE LAPORAN AKUNTABILITAS OTOMATIS",
+      logs: [
+        "📄 Mengompilasi ringkasan kegiatan pro-bono se-Indonesia...",
+        "📊 Menghitung efisiensi anggaran bantuan hukum rakyat miskin...",
+        "📈 Menyusun infografis statistik penanganan sengketa...",
+        "📜 Sukses: Laporan Akuntabilitas triwulan diterbitkan ke beranda!"
+      ]
+    },
+    6: {
+      fullName: "Akselerasi Bantuan Hukum & Respon Darurat",
+      status: "RESPONSIF",
+      metrics: ["Respons: < 10 Menit", "94.5% Tingkat Kepuasan", "Hotline: Terintegrasi"],
+      actionName: "SIMULASIKAN NOTIFIKASI ADUAN DARURAT",
+      logs: [
+        "🚨 Mendeteksi aduan penyerobotan lahan dari petani Garut...",
+        "📡 Mengirimkan alarm ke Satgas LBH terdekat di lapangan...",
+        "📱 Mengirim pesan aman ke Advokat Pendamping wilayah...",
+        "🟢 Sukses: Tim hukum diberangkatkan ke lokasi dalam 7 menit!"
+      ]
+    },
+    7: {
+      fullName: "Sistem Informasi Berkelanjutan & Pembaruan Kode",
+      status: "MUTAKHIR",
+      metrics: ["Pembaruan: Bulanan", "Kompatibilitas: 100%", "Arsitektur: Modular"],
+      actionName: "MULAI INTEGRASI TERHADAP CORE DHN SYSTEM",
+      logs: [
+        "🧬 Membuka repositori git core-system-lbh...",
+        "⚙️ Menjalankan pengujian kompatibilitas modul rilis...",
+        "📦 Membaca pustaka integrasi pihak ketiga...",
+        "🚀 Sukses: Kode baru terintegrasi tanpa crash. Build: BERHASIL!"
+      ]
+    }
+  };
+
+  const handleRunPillarSimulation = (id: number) => {
+    if (isSimulatingPillar) return;
+    setIsSimulatingPillar(true);
+    setPillarLogs([]);
+    const targetLogs = pillarSimulations[id]?.logs || [];
+    let currentIdx = 0;
+    
+    const interval = setInterval(() => {
+      if (currentIdx < targetLogs.length) {
+        setPillarLogs(prev => [...prev, targetLogs[currentIdx]]);
+        currentIdx++;
+      } else {
+        clearInterval(interval);
+        setIsSimulatingPillar(false);
+      }
+    }, 800);
+  };
+
+  const handleGenerateKta = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!ktaNama.trim() || !ktaNik.trim()) return;
+    setIsGeneratingKta(true);
+    setTimeout(() => {
+      setIsGeneratingKta(false);
+      setKtaGenerated(true);
+    }, 1500);
+  };
+
   const pillars = [
     {
       id: 1,
@@ -249,6 +381,299 @@ export default function DhnOneSystemView() {
           })}
         </div>
       </div>
+
+      {/* Interactive Detail Panel for Selected Pilar */}
+      {activePillar && (
+        <motion.div
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-[#0a0a0a] border-2 border-red-900/60 rounded-2xl p-6 text-left space-y-6 shadow-xl relative overflow-hidden"
+          id="panel-interaktif-pilar"
+        >
+          {/* Accent decoration */}
+          <div className="absolute top-0 right-0 w-64 h-64 bg-red-950/10 rounded-full blur-3xl pointer-events-none"></div>
+
+          <div className="flex flex-col md:flex-row justify-between items-start gap-4 border-b border-slate-850 pb-4 relative z-10">
+            <div>
+              <span className="text-[10px] font-mono font-bold text-red-500 uppercase tracking-widest block">
+                INTEGRASI PILAR TEKNOLOGI NASIONAL
+              </span>
+              <h3 className="text-md sm:text-lg font-black text-white tracking-wide uppercase font-mono mt-1">
+                {pillarSimulations[activePillar]?.fullName || "Pilar Utama DHN One System"}
+              </h3>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Status Sistem: <span className="text-green-500 font-bold font-mono">● {pillarSimulations[activePillar]?.status || "AKTIF"}</span>
+              </p>
+            </div>
+            <button
+              onClick={() => {
+                setActivePillar(null);
+                setPillarLogs([]);
+                setKtaGenerated(false);
+              }}
+              className="text-xs bg-slate-900 hover:bg-slate-850 text-slate-400 hover:text-white px-2.5 py-1 rounded border border-slate-800 transition cursor-pointer"
+            >
+              TUTUP PANEL
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 relative z-10">
+            {/* Column 1: Live Status metrics & Simulator console */}
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <span className="text-[10px] font-mono text-slate-500 font-bold uppercase tracking-wider block">
+                  METRIKS SISTEM (SIMULASI ALUR DATA)
+                </span>
+                <div className="grid grid-cols-3 gap-2">
+                  {(pillarSimulations[activePillar]?.metrics || []).map((m, idx) => (
+                    <div key={idx} className="bg-[#050505] border border-slate-850 rounded-lg p-2.5 text-center">
+                      <span className="text-[10px] font-black text-white font-mono block">
+                        {m.split(":")[0]}
+                      </span>
+                      <span className="text-[9px] text-red-400 font-mono block mt-0.5">
+                        {m.split(":")[1] || "ONLINE"}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Console simulator trigger & logs display */}
+              <div className="space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-[10px] font-mono text-slate-500 font-bold uppercase tracking-wider">
+                    CONSOLE INTEGRASI NASIONAL
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => handleRunPillarSimulation(activePillar)}
+                    disabled={isSimulatingPillar}
+                    className="px-3 py-1 bg-red-950/45 hover:bg-red-900/40 text-red-500 hover:text-red-400 text-[10px] font-mono font-bold rounded border border-red-900/30 transition cursor-pointer flex items-center gap-1.5"
+                  >
+                    <Terminal className={`w-3.5 h-3.5 ${isSimulatingPillar ? "animate-spin" : ""}`} />
+                    {isSimulatingPillar ? "SINKRONISASI..." : pillarSimulations[activePillar]?.actionName}
+                  </button>
+                </div>
+
+                <div className="bg-[#050505] border border-slate-850 rounded-xl p-4 font-mono text-[10px] space-y-1.5 min-h-[120px] flex flex-col justify-between">
+                  <div className="space-y-1.5">
+                    <div className="text-slate-500 border-b border-slate-850/60 pb-1 flex justify-between">
+                      <span>DHN_ONE_SYSTEM TERMINAL v2.0</span>
+                      <span className="text-red-500 font-bold animate-pulse">● BROADCAST_ACTIVE</span>
+                    </div>
+                    {pillarLogs.length === 0 ? (
+                      <div className="text-slate-500 italic py-4 text-center">
+                        Silakan klik tombol aksi di atas untuk mensimulasikan integrasi database pilar.
+                      </div>
+                    ) : (
+                      <div className="space-y-1">
+                        {pillarLogs.map((log, i) => (
+                          <motion.div
+                            key={i}
+                            initial={{ opacity: 0, x: -5 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            className="text-slate-300 leading-relaxed text-left"
+                          >
+                            {log}
+                          </motion.div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  {isSimulatingPillar && (
+                    <div className="text-red-500 text-[9px] text-right animate-pulse pt-2 border-t border-slate-850/40">
+                      SYNCING WITH PUSAT DATA NASIONAL...
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Column 2: Specific Interactive Tool or KTA Generator */}
+            <div className="bg-[#050505] border border-slate-850 rounded-xl p-5 flex flex-col justify-between min-h-[250px]">
+              {activePillar === 2 ? (
+                /* SATU IDENTITAS DIGITAL - KTA GENERATOR */
+                <div className="space-y-4">
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-mono font-bold text-red-500 block uppercase">
+                      FITUR UTAMA PILAR 2
+                    </span>
+                    <span className="text-xs font-black text-white block uppercase">
+                      Pembuat KTA Digital LBH DHN Mandiri
+                    </span>
+                    <p className="text-[10px] text-slate-500 leading-normal">
+                      Simulasikan pilar Identitas Digital dengan mencetak kartu digital resmi Anda sekarang.
+                    </p>
+                  </div>
+
+                  {ktaGenerated ? (
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      className="bg-gradient-to-r from-slate-950 to-slate-900 border-2 border-red-900 p-4 rounded-xl relative overflow-hidden shadow-2xl"
+                    >
+                      {/* Watermark Logo */}
+                      <div className="absolute -right-6 -bottom-6 text-[100px] font-black text-white/5 font-mono pointer-events-none select-none">
+                        DHN
+                      </div>
+                      
+                      <div className="flex justify-between items-start border-b border-red-900/40 pb-2 mb-3">
+                        <div className="flex items-center gap-2">
+                          <div className="w-6 h-6 bg-red-700 rounded flex items-center justify-center text-[10px] font-black text-white">
+                            IHS
+                          </div>
+                          <div>
+                            <p className="text-[8px] font-black text-white leading-none uppercase">KTA DIGITAL RESMI</p>
+                            <p className="text-[6px] text-slate-500 font-mono uppercase tracking-widest mt-0.5">LBH DELIK HUKUM NEGARA</p>
+                          </div>
+                        </div>
+                        <span className="text-[6px] font-mono text-green-500 bg-green-950 px-1 border border-green-900 rounded">
+                          ACTIVE SECURE
+                        </span>
+                      </div>
+
+                      <div className="flex gap-3">
+                        {/* Profile placeholder */}
+                        <div className="w-16 h-20 bg-slate-900 border border-slate-800 rounded flex flex-col items-center justify-center text-slate-600 shrink-0 relative overflow-hidden">
+                          <span className="text-[8px] font-bold text-slate-500 font-mono">FOTO KADER</span>
+                          <span className="text-[18px] mt-1">👤</span>
+                        </div>
+
+                        {/* Card metadata */}
+                        <div className="flex-1 space-y-1.5 text-left text-xs">
+                          <div>
+                            <p className="text-[7px] text-slate-500 font-mono uppercase">Nama Lengkap:</p>
+                            <p className="text-[10px] font-black text-white uppercase">{ktaNama}</p>
+                          </div>
+                          <div>
+                            <p className="text-[7px] text-slate-500 font-mono uppercase">Nomor Induk Anggota / NIK:</p>
+                            <p className="text-[9px] font-mono font-bold text-red-500">{ktaNik}</p>
+                          </div>
+                          <div>
+                            <p className="text-[7px] text-slate-500 font-mono uppercase">Kewenangan / Peran:</p>
+                            <p className="text-[9px] font-bold text-slate-300">{ktaRole}</p>
+                          </div>
+                        </div>
+
+                        {/* Scanner QR Code */}
+                        <div className="w-16 h-16 bg-white p-1 rounded border border-slate-800 shrink-0 self-center flex items-center justify-center">
+                          {/* Simulated high-fidelity visual QR code */}
+                          <div className="grid grid-cols-4 gap-[2px] w-full h-full p-0.5">
+                            {[...Array(16)].map((_, i) => (
+                              <div
+                                key={i}
+                                className={`rounded-sm ${
+                                  (i * 7 + 13) % 5 === 0 || i === 0 || i === 3 || i === 12 || i === 15
+                                    ? "bg-black"
+                                    : "bg-transparent"
+                                }`}
+                              ></div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="mt-3 pt-2 border-t border-red-900/20 flex justify-between items-center">
+                        <span className="text-[6px] text-slate-500 font-mono">TERBITAN: TAHUN 2026 • INTEGRITAS RESMI</span>
+                        <button
+                          onClick={() => {
+                            setKtaGenerated(false);
+                            setKtaNama("");
+                            setKtaNik("");
+                          }}
+                          className="text-[8px] bg-red-950 text-red-500 hover:text-white px-1.5 py-0.5 rounded border border-red-900/30 transition cursor-pointer"
+                        >
+                          BUAT ULANG KTA
+                        </button>
+                      </div>
+                    </motion.div>
+                  ) : (
+                    <form onSubmit={handleGenerateKta} className="space-y-2.5">
+                      <div className="space-y-1 text-left">
+                        <label className="text-[9px] text-slate-400 font-bold uppercase">Nama Pemegang KTA:</label>
+                        <input
+                          type="text"
+                          placeholder="Masukkan nama lengkap Anda..."
+                          value={ktaNama}
+                          onChange={(e) => setKtaNama(e.target.value)}
+                          className="w-full bg-[#0a0a0a] border border-slate-800 text-[11px] rounded p-1.5 text-slate-200 outline-none focus:border-red-600"
+                          required
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="space-y-1 text-left">
+                          <label className="text-[9px] text-slate-400 font-bold uppercase">NIK / No. Identitas:</label>
+                          <input
+                            type="text"
+                            placeholder="320501..."
+                            value={ktaNik}
+                            onChange={(e) => setKtaNik(e.target.value)}
+                            className="w-full bg-[#0a0a0a] border border-slate-800 text-[11px] rounded p-1.5 text-slate-200 outline-none focus:border-red-600 font-mono"
+                            required
+                          />
+                        </div>
+                        <div className="space-y-1 text-left">
+                          <label className="text-[9px] text-slate-400 font-bold uppercase">Peran / Bidang:</label>
+                          <select
+                            value={ktaRole}
+                            onChange={(e) => setKtaRole(e.target.value)}
+                            className="w-full h-8 bg-[#0a0a0a] border border-slate-800 text-[11px] rounded px-1.5 text-slate-200 outline-none focus:border-red-600"
+                          >
+                            <option value="Anggota / Pembela Hukum">Advokat Anggota</option>
+                            <option value="Paralegal Lapangan">Paralegal Lapangan</option>
+                            <option value="Satgas Pengamanan EPF">Satgas Pengamanan</option>
+                            <option value="Kader Srikandi Hukum">Srikandi KHI</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <button
+                        type="submit"
+                        disabled={isGeneratingKta}
+                        className="w-full py-2 bg-red-700 hover:bg-red-600 text-white font-mono font-bold text-[10px] rounded tracking-widest transition cursor-pointer flex items-center justify-center gap-1.5 uppercase"
+                      >
+                        <ShieldCheck className="w-3.5 h-3.5" />
+                        {isGeneratingKta ? "SEDANG MEMPROSES..." : "TERBITKAN KTA DIGITAL"}
+                      </button>
+                    </form>
+                  )}
+                </div>
+              ) : (
+                /* GENERAL OTHER PILLARS INTERACTIVE BENEFITS VIEW */
+                <div className="space-y-4">
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-mono font-bold text-red-500 block uppercase">
+                      MANFAAT STRATEGIS PILAR
+                    </span>
+                    <span className="text-xs font-black text-white block uppercase">
+                      Sinergi Nasional & Otomatisasi
+                    </span>
+                    <p className="text-[10px] text-slate-500 leading-normal">
+                      Pilar ini mempercepat laju pertumbuhan organisasi secara berkelanjutan dan memutus rantai birokrasi yang lambat.
+                    </p>
+                  </div>
+
+                  <div className="space-y-2 pt-2">
+                    <div className="p-3 bg-[#0a0a0a] border border-slate-850 rounded-lg flex items-start gap-2.5">
+                      <span className="text-red-500 text-xs font-bold font-mono">✓</span>
+                      <p className="text-[10px] text-slate-300 leading-relaxed text-left">
+                        <strong className="text-slate-100">Efisiensi Administrasi:</strong> Pengurangan berkas fisik s/d 90%, menghemat waktu proses, dan menghapus resiko dokumen hilang.
+                      </p>
+                    </div>
+                    <div className="p-3 bg-[#0a0a0a] border border-slate-850 rounded-lg flex items-start gap-2.5">
+                      <span className="text-red-500 text-xs font-bold font-mono">✓</span>
+                      <p className="text-[10px] text-slate-300 leading-relaxed text-left">
+                        <strong className="text-slate-100">Kedaulatan Data:</strong> Seluruh data dihosting secara mandiri oleh LBH DHN tanpa tergantung server pihak ketiga yang tidak aman.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </motion.div>
+      )}
 
       {/* PDN and Digital Services Tabbed Area */}
       <div className="bg-[#0a0a0a] border border-slate-800 rounded-xl overflow-hidden text-left">

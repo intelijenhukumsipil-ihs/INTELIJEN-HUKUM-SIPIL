@@ -26,6 +26,164 @@ import { motion } from "framer-motion";
 export default function EkosistemOtonomView() {
   const [activeLembaga, setActiveLembaga] = useState<string | null>(null);
 
+  // Interactive Simulation and Form States
+  const [simLogs, setSimLogs] = useState<string[]>([]);
+  const [isSimulating, setIsSimulating] = useState(false);
+  const [namaPendaftar, setNamaPendaftar] = useState("");
+  const [wilayahPendaftar, setWilayahPendaftar] = useState("");
+  const [motivasiPendaftar, setMotivasiPendaftar] = useState("");
+  const [submitStatus, setSubmitStatus] = useState<"idle" | "sending" | "success">("idle");
+
+  const simulasiDataMap: Record<string, {
+    fullName: string;
+    koordinator: string;
+    metrics: string[];
+    simTitle: string;
+    logs: string[];
+  }> = {
+    auditor: {
+      fullName: "Dewan Auditor Kepatuhan Intern LBH DHN",
+      koordinator: "H. M. Arifin, S.E., S.H.",
+      metrics: ["Total Kasus: 89 Audit", "Audit Kepatuhan: 98.7%", "Status: Bersih & Sumpah"],
+      simTitle: "JALANKAN AUDIT KEPATUHAN KEUANGAN & ARSIP",
+      logs: [
+        "🔍 Menghubungkan ke repositori administrasi pusat...",
+        "📂 Menarik salinan berkas perkara pro-bono 2026...",
+        "⚖️ Memverifikasi pertanggungjawaban dana bantuan rakyat...",
+        "✅ Audit selesai: Seluruh administrasi terverifikasi 100% patuh & bersih!"
+      ]
+    },
+    agen_rahasia: {
+      fullName: "Satuan Penyelidik & Analisis Strategis Klandestin",
+      koordinator: "Sandi Yudha, S.H. (Klandestin)",
+      metrics: ["Total Laporan: 124 Risiko", "Akurasi Info: 99.1%", "Status: Siaga Operasional"],
+      simTitle: "SIMULASIKAN PEMETAAN RISIKO SEKTORAL",
+      logs: [
+        "👁️ Memantau radar aktivitas sengketa agraria daerah...",
+        "📊 Mengumpulkan data sekunder & intelijen media...",
+        "⚠️ Mendeteksi indikasi penyerobotan lahan sepihak di sektor Banten...",
+        "🛡️ Laporan taktis dikunci, dienkripsi & diteruskan ke Komando Utama!"
+      ]
+    },
+    epf: {
+      fullName: "Elite Protection Force (Satgas Pengamanan Utama)",
+      koordinator: "Letnan Budi (Purnawirawan)",
+      metrics: ["Misi Pengawalan: 45 Saksi", "Kondisi Personel: Prima", "Status Keamanan: Siaga I"],
+      simTitle: "AKTIFKAN SIMULASI PROTOKOL PENGAWALAN SAKSI",
+      logs: [
+        "🚨 Menerima permintaan pengamanan darurat saksi kunci korupsi...",
+        "🛡️ Menyiapkan 3 personel bersertifikat pengamanan taktis utama...",
+        "🚘 Menentukan rute evakuasi teraman bebas cegatan...",
+        "🟢 Protokol Aktif: Saksi kunci berhasil diantarkan ke persidangan dengan aman!"
+      ]
+    },
+    khi: {
+      fullName: "Klinik Hukum Ibu & Perlindungan Perempuan Anak",
+      koordinator: "Dr. Rina Fatmawati, S.H., M.H.",
+      metrics: ["Edukasi Publik: 210 Ibu", "Tingkat Selesai: 95%", "Layanan Bantuan: Aktif"],
+      simTitle: "MULAI KONSULTASI INTERAKTIF PEREMPUAN & ANAK",
+      logs: [
+        "🌸 Mengaktifkan portal pendampingan korban kekerasan dalam rumah tangga...",
+        "📄 Merumuskan draf gugatan cerai & somasi perlindungan anak...",
+        "⚖️ Mengoordinasikan pendampingan psikologis korban bersama psikolog...",
+        "💖 Layanan tuntas: Korban aman dalam rumah perlindungan organisasi!"
+      ]
+    },
+    naraka: {
+      fullName: "Nalar Rakyat Demi Keadilan (Kajian Kritis Sipil)",
+      koordinator: "Prof. Dr. Hendra Wijaya",
+      metrics: ["Karya Riset: 18 Naskah", "Kajian Isu: Aktif", "Partisipasi Sipil: Tinggi"],
+      simTitle: "JALANKAN KAJIAN AKADEMIS HAK SIPIL",
+      logs: [
+        "📚 Membedah draf undang-undang pertanahan nasional terbaru...",
+        "⚖️ Menemukan pasal-pasal kontroversial yang merugikan petani gurem...",
+        "📝 Merumuskan 5 butir rekomendasi amandemen pro-rakyat...",
+        "📨 Selesai: Naskah Amandemen siap diserahkan ke DPR RI & Media Massa!"
+      ]
+    },
+    surga: {
+      fullName: "Suara Rakyat Garut (Media Aspirasi Hukum Lokal)",
+      koordinator: "Kang Asep Garut",
+      metrics: ["Total Aduan: 345 Masuk", "Diseminasi Berita: 100%", "Status Media: Siaran Aktif"],
+      simTitle: "SIMULASIKAN PENYALURAN ASPIRASI KE MEDIA",
+      logs: [
+        "📻 Menghubungkan ke saluran pemancar berita Garut...",
+        "🗣️ Menerima aduan warga terkait pungutan liar di pasar desa...",
+        "📰 Mengemas laporan dalam artikel berita publik berimbang...",
+        "📡 Sukses: Berita disebarluaskan ke jurnalis lokal & pihak berwenang!"
+      ]
+    },
+    plw: {
+      fullName: "Pioneer Legal Women (Persatuan Advokat Wanita)",
+      koordinator: "Adv. Sarah Siregar, S.H.",
+      metrics: ["Total Anggota: 78 Advokat", "Program Diklat: Berjalan", "Status Jejaring: Aktif"],
+      simTitle: "MULAI SIMULASI DIKLAT ADVOKASI PEREMPUAN",
+      logs: [
+        "👩‍🎓 Membuka pendaftaran diklat hukum khusus perempuan...",
+        "📖 Mengunduh materi hak perdata & ketenagakerjaan wanita...",
+        "🗣️ Menyelenggarakan lokakarya pendampingan hukum mandiri...",
+        "🎓 Sukses: 50 kader perempuan baru dilantik untuk melayani warga!"
+      ]
+    },
+    lrni: {
+      fullName: "Lembaga Riset Nasional Independen LBH DHN",
+      koordinator: "Dr. Alamsyah, M.A.",
+      metrics: ["Jurnal Terbit: 32 Rilis", "Independensi: 100%", "Status Riset: Aktif"],
+      simTitle: "SIMULASIKAN METODE RISET INDEPENDEN KASUS",
+      logs: [
+        "📑 Mengumpulkan sampel berkas putusan pengadilan sengketa agraria...",
+        "🧬 Melakukan analisis sosiologi hukum atas putusan...",
+        "📊 Memetakan persentase kemenangan rakyat kecil versus korporasi...",
+        "📈 Publikasi: Jurnal Riset Hukum Nasional berhasil dirilis ke publik!"
+      ]
+    },
+    ihs_otonom: {
+      fullName: "Intelligent Hukum Sipil (Divisi Analisis Digital)",
+      koordinator: "Kapten Iwan (Pusat IHS)",
+      metrics: ["Total Kader: 1,420 Anggota", "Enkripsi Saluran: Aktif", "Status Jaringan: Online"],
+      simTitle: "JALANKAN AUDIT ALUR DATA DHN ONE SYSTEM",
+      logs: [
+        "🔐 Memverifikasi kunci enkripsi database pusat...",
+        "🔍 Menyaring lalu lintas jaringan dari upaya penyusupan...",
+        "🔄 Mensinkronisasikan draf berita media ke portal...",
+        "🟢 Alur data aman: Seluruh sistem beroperasi dalam keadaan hijau!"
+      ]
+    }
+  };
+
+  const handleRunSimulation = (id: string) => {
+    if (isSimulating) return;
+    setIsSimulating(true);
+    setSimLogs([]);
+    const targetLogs = simulasiDataMap[id]?.logs || [];
+    let currentIdx = 0;
+    
+    const interval = setInterval(() => {
+      if (currentIdx < targetLogs.length) {
+        setSimLogs(prev => [...prev, targetLogs[currentIdx]]);
+        currentIdx++;
+      } else {
+        clearInterval(interval);
+        setIsSimulating(false);
+      }
+    }, 800);
+  };
+
+  const handleFormSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!namaPendaftar.trim() || !wilayahPendaftar.trim()) return;
+    setSubmitStatus("sending");
+    setTimeout(() => {
+      setSubmitStatus("success");
+      setTimeout(() => {
+        setSubmitStatus("idle");
+        setNamaPendaftar("");
+        setWilayahPendaftar("");
+        setMotivasiPendaftar("");
+      }, 3500);
+    }, 1500);
+  };
+
   const prinsipDasar = [
     { title: "Integritas", desc: "Menjaga kejujuran moral tertinggi dalam setiap tindakan." },
     { title: "Profesionalisme", desc: "Melaksanakan tugas secara kompeten, tangkas, dan terukur." },
@@ -303,6 +461,193 @@ export default function EkosistemOtonomView() {
           })}
         </div>
       </div>
+
+      {/* Interactive Detail Panel for Selected Lembaga */}
+      {activeLembaga && (
+        <motion.div
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-[#0a0a0a] border-2 border-red-900/60 rounded-2xl p-6 text-left space-y-6 shadow-xl relative overflow-hidden"
+          id="panel-interaktif-lembaga"
+        >
+          {/* Accent decoration */}
+          <div className="absolute top-0 right-0 w-64 h-64 bg-red-950/10 rounded-full blur-3xl pointer-events-none"></div>
+          
+          <div className="flex flex-col md:flex-row justify-between items-start gap-4 border-b border-slate-850 pb-4 relative z-10">
+            <div>
+              <span className="text-[10px] font-mono font-bold text-red-500 uppercase tracking-widest block">
+                INFORMASI & SIMULATOR INTERAKTIF Sayap Otonom
+              </span>
+              <h3 className="text-md sm:text-lg font-black text-white tracking-wide uppercase font-mono mt-1">
+                {simulasiDataMap[activeLembaga]?.fullName || activeLembaga.toUpperCase()}
+              </h3>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Penanggung Jawab / Koordinator: <strong className="text-slate-200">{simulasiDataMap[activeLembaga]?.koordinator || "Dewan Pimpinan"}</strong>
+              </p>
+            </div>
+            <button
+              onClick={() => {
+                setActiveLembaga(null);
+                setSimLogs([]);
+              }}
+              className="text-xs bg-slate-900 hover:bg-slate-850 text-slate-400 hover:text-white px-2.5 py-1 rounded border border-slate-800 transition cursor-pointer"
+            >
+              TUTUP PANEL
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 relative z-10">
+            {/* Column 1: Live Status metrics & Simulator console */}
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <span className="text-[10px] font-mono text-slate-500 font-bold uppercase tracking-wider block">
+                  METRIKS OPERASIONAL (SIMULASI DATA REAL-TIME)
+                </span>
+                <div className="grid grid-cols-3 gap-2">
+                  {(simulasiDataMap[activeLembaga]?.metrics || []).map((m, idx) => (
+                    <div key={idx} className="bg-[#050505] border border-slate-850 rounded-lg p-2 text-center">
+                      <span className="text-[10px] font-black text-white font-mono block">
+                        {m.split(":")[0]}
+                      </span>
+                      <span className="text-[9px] text-red-400 font-mono block mt-0.5">
+                        {m.split(":")[1] || "AKTIF"}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Console simulator trigger & logs display */}
+              <div className="space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-[10px] font-mono text-slate-500 font-bold uppercase tracking-wider">
+                    KONSOL OPERASI AKTIVITAS
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => handleRunSimulation(activeLembaga)}
+                    disabled={isSimulating}
+                    className="px-3 py-1 bg-red-950/45 hover:bg-red-900/40 text-red-500 hover:text-red-400 text-[10px] font-mono font-bold rounded border border-red-900/30 transition cursor-pointer flex items-center gap-1.5"
+                  >
+                    <Terminal className={`w-3.5 h-3.5 ${isSimulating ? "animate-spin" : ""}`} />
+                    {isSimulating ? "MENJALANKAN..." : "RUN SIMULATOR"}
+                  </button>
+                </div>
+
+                <div className="bg-[#050505] border border-slate-850 rounded-xl p-4 font-mono text-[10px] space-y-1.5 min-h-[120px] flex flex-col justify-between">
+                  <div className="space-y-1.5">
+                    <div className="text-slate-500 border-b border-slate-850/60 pb-1 flex justify-between">
+                      <span>CONSOLE TERMINAL V1.0</span>
+                      <span className="text-red-500 font-bold animate-pulse">● LIVE_FEED</span>
+                    </div>
+                    {simLogs.length === 0 ? (
+                      <div className="text-slate-500 italic py-4 text-center">
+                        Silakan klik "RUN SIMULATOR" di atas untuk menjalankan simulasi alur operasional sayap lembaga.
+                      </div>
+                    ) : (
+                      <div className="space-y-1">
+                        {simLogs.map((log, i) => (
+                          <motion.div
+                            key={i}
+                            initial={{ opacity: 0, x: -5 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            className="text-slate-300 leading-relaxed text-left"
+                          >
+                            {log}
+                          </motion.div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  {isSimulating && (
+                    <div className="text-red-500 text-[9px] text-right animate-pulse pt-2 border-t border-slate-850/40">
+                      PROCESSING ENCRYPTED DATAFEED...
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Column 2: Form to Join / Aspirasi */}
+            <div className="bg-[#050505] border border-slate-850 rounded-xl p-5 space-y-4">
+              <div className="space-y-1">
+                <span className="text-[10px] font-mono font-bold text-red-500 block uppercase">
+                  REGISTRASI SINERGI / PENGAJUAN
+                </span>
+                <span className="text-xs font-black text-white block uppercase">
+                  Formulir Kemitraan Jaringan Otonom
+                </span>
+                <p className="text-[10px] text-slate-500 leading-normal">
+                  Daftarkan diri Anda atau ajukan kerja sama kemitraan strategis dengan pilar sayap otonom ini.
+                </p>
+              </div>
+
+              {submitStatus === "success" ? (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="p-4 bg-green-950/20 border border-green-900/40 text-green-400 rounded-lg space-y-2 text-center"
+                >
+                  <ShieldCheck className="w-8 h-8 mx-auto text-green-500 animate-bounce" />
+                  <div className="space-y-0.5">
+                    <p className="text-xs font-bold">PENGAJUAN BERHASIL DIKIRIM!</p>
+                    <p className="text-[10px] text-slate-300 leading-relaxed">
+                      Sistem telah menyelaraskan data pengajuan Anda ke database Pusat LBH DHN. Nomor Registrasi Sementara Anda akan dikirim via pesan aman.
+                    </p>
+                  </div>
+                </motion.div>
+              ) : (
+                <form onSubmit={handleFormSubmit} className="space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1 text-left">
+                      <label className="text-[10px] text-slate-400 font-bold uppercase">Nama Lengkap:</label>
+                      <input
+                        type="text"
+                        placeholder="Contoh: Heri Darmawan"
+                        value={namaPendaftar}
+                        onChange={(e) => setNamaPendaftar(e.target.value)}
+                        className="w-full bg-[#0a0a0a] border border-slate-800 text-[11px] rounded p-1.5 text-slate-200 outline-none focus:border-red-600"
+                        required
+                      />
+                    </div>
+                    <div className="space-y-1 text-left">
+                      <label className="text-[10px] text-slate-400 font-bold uppercase">Wilayah / Daerah:</label>
+                      <input
+                        type="text"
+                        placeholder="Contoh: Garut Barat"
+                        value={wilayahPendaftar}
+                        onChange={(e) => setWilayahPendaftar(e.target.value)}
+                        className="w-full bg-[#0a0a0a] border border-slate-800 text-[11px] rounded p-1.5 text-slate-200 outline-none focus:border-red-600"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1 text-left">
+                    <label className="text-[10px] text-slate-400 font-bold uppercase">Motivasi & Deskripsi Pengajuan:</label>
+                    <textarea
+                      rows={2}
+                      placeholder="Tuliskan alasan bergabung atau detail program kerja sama yang ditawarkan..."
+                      value={motivasiPendaftar}
+                      onChange={(e) => setMotivasiPendaftar(e.target.value)}
+                      className="w-full bg-[#0a0a0a] border border-slate-800 text-[11px] rounded p-1.5 text-slate-200 outline-none focus:border-red-600 font-sans leading-relaxed"
+                    ></textarea>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={submitStatus === "sending"}
+                    className="w-full py-2 bg-red-700 hover:bg-red-600 text-white font-mono font-bold text-[10px] rounded tracking-widest transition cursor-pointer flex items-center justify-center gap-1.5 uppercase animate-pulse"
+                  >
+                    <ShieldCheck className="w-3.5 h-3.5" />
+                    {submitStatus === "sending" ? "MENGIRIM PENGAJUAN..." : "KIRIM PENGAJUAN RESMI"}
+                  </button>
+                </form>
+              )}
+            </div>
+          </div>
+        </motion.div>
+      )}
 
       {/* Principles and Relationships */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
