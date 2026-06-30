@@ -109,6 +109,14 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
+  // Deep-linking: Force activeTab to "home" if ?warta or /warta/ is in URL
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.has("warta") || window.location.pathname.includes("/warta/")) {
+      setActiveTab("home");
+    }
+  }, []);
+
   // Firebase Firestore Real-Time State Syncing
   useEffect(() => {
     if (isAuthLoading) return;
@@ -126,12 +134,16 @@ export default function App() {
           const res = await fetch("/api/news");
           if (res.ok) {
             const initialData = await res.json();
-            for (const item of initialData) {
-              await setDoc(doc(db, "publications", item.id), item);
+            setNewsList(initialData);
+            // Only try to write to database if user is logged in (has write permissions)
+            if (auth.currentUser) {
+              for (const item of initialData) {
+                await setDoc(doc(db, "publications", item.id), item);
+              }
             }
           }
         } catch (err) {
-          console.error("Gagal seeding berita:", err);
+          console.error("Gagal seeding atau memuat berita lokal:", err);
         }
       } else {
         setNewsList(list);
@@ -141,8 +153,17 @@ export default function App() {
           console.error(e);
         }
       }
-    }, (err) => {
-      console.error("Gagal mengamati berita:", err);
+    }, async (err) => {
+      console.error("Gagal mengamati berita, memuat fallback lokal:", err);
+      try {
+        const res = await fetch("/api/news");
+        if (res.ok) {
+          const initialData = await res.json();
+          setNewsList(initialData);
+        }
+      } catch (fallbackErr) {
+        console.error("Gagal memuat berita fallback:", fallbackErr);
+      }
     });
 
     if (!user) {

@@ -59,11 +59,18 @@ export default function HomeView({ onNavigate, cases, syncLogs, newsList }: Home
   const [sharingArticle, setSharingArticle] = useState<any | null>(null);
   const [copied, setCopied] = useState(false);
 
-  // Parse URL search parameters to check if user opened a shared article link
+  // Parse URL search parameters or pathname to check if user opened a shared article link
   useEffect(() => {
     if (newsList && newsList.length > 0) {
       const params = new URLSearchParams(window.location.search);
-      const wartaId = params.get("warta");
+      let wartaId = params.get("warta");
+      if (!wartaId) {
+        const pathParts = window.location.pathname.split("/");
+        const wartaIdx = pathParts.findIndex(p => p === "warta");
+        if (wartaIdx !== -1 && wartaIdx + 1 < pathParts.length) {
+          wartaId = pathParts[wartaIdx + 1];
+        }
+      }
       if (wartaId) {
         const found = newsList.find(item => item.id === wartaId);
         if (found) {
@@ -184,201 +191,6 @@ export default function HomeView({ onNavigate, cases, syncLogs, newsList }: Home
         </div>
       </div>
 
-      {/* Connection & Gateway Health Bar */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-[#0a0a0a] border border-slate-800 rounded-xl p-4 flex items-center justify-between shadow-md">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-green-950/40 text-green-500 rounded-lg border border-green-900/30">
-              <Activity className="w-5 h-5 animate-pulse" />
-            </div>
-            <div>
-              <div className="text-xs text-slate-500 font-mono uppercase tracking-wider">SERVER UTAMA</div>
-              <div className="text-sm font-bold text-slate-200">www.ihsid.org</div>
-            </div>
-          </div>
-          <span className="flex items-center gap-1.5 text-xs text-green-400 font-semibold bg-green-950/20 px-2 py-0.5 rounded-lg border border-green-900/40">
-            <span className="w-2 h-2 rounded-full bg-green-500 animate-ping"></span>
-            TERKONEKSI
-          </span>
-        </div>
-
-        <div className="bg-[#0a0a0a] border border-slate-800 rounded-xl p-4 flex items-center justify-between shadow-md">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-red-950/40 text-red-500 rounded-lg border border-red-900/30">
-              <Lock className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="text-xs text-slate-500 font-mono uppercase tracking-wider">PROTOKOL KEAMANAN</div>
-              <div className="text-sm font-bold text-slate-200">Enkripsi End-to-End SSL</div>
-            </div>
-          </div>
-          <span className="text-xs text-red-400 font-semibold bg-red-950/20 px-2 py-0.5 rounded-lg border border-red-900/40 font-mono">
-            AES-256
-          </span>
-        </div>
-
-        <div className="bg-[#0a0a0a] border border-slate-800 rounded-xl p-4 flex items-center justify-between shadow-md">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-slate-900 text-slate-300 rounded-lg border border-slate-850">
-              <MessageCircle className="w-5 h-5 text-green-500" />
-            </div>
-            <div>
-              <div className="text-xs text-slate-500 font-mono uppercase tracking-wider">HOTLINE WHATSAPP</div>
-              <div className="text-sm font-bold text-slate-200">0852-2232-2254</div>
-            </div>
-          </div>
-          <a
-            href="https://wa.me/6285222322254"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-xs text-green-400 hover:text-green-300 font-semibold bg-green-950/20 hover:bg-green-950/40 px-2 py-1 rounded border border-green-900/40 transition flex items-center gap-1"
-          >
-            HUBUNGI
-            <ExternalLink className="w-3 h-3" />
-          </a>
-        </div>
-      </div>
-
-      {/* DAILY NEWS & SYNC REGISTRY SECTION - FULL WIDTH HEADLINES */}
-      <div className="bg-[#0a0a0a] border border-slate-800 rounded-2xl p-6 sm:p-8 space-y-6 shadow-2xl relative">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-850">
-          <div className="space-y-1 text-left">
-            <h3 className="text-xl font-black text-white flex items-center gap-2.5 font-mono tracking-wide uppercase">
-              <Newspaper className="w-6 h-6 text-red-500" />
-              WARTA HARIAN & RILIS PERS UTAMA
-            </h3>
-            <p className="text-xs sm:text-sm text-slate-400">
-              Kanal publikasi resmi Satgas Intelijen Hukum Sipil (IHS) mengenai pengawasan wewenang dan pembelaan hak warga.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={handleManualSync}
-            disabled={isSyncing}
-            className={`px-5 py-2.5 bg-slate-900 border border-slate-800 hover:border-red-900/60 text-xs font-bold text-slate-200 hover:text-white rounded-xl flex items-center gap-2 transition shrink-0 cursor-pointer ${isSyncing ? "opacity-75" : ""}`}
-          >
-            <RefreshCw className={`w-4 h-4 text-red-500 ${isSyncing ? "animate-spin" : ""}`} />
-            {isSyncing ? "Memperbarui..." : "MUAT ULANG BERITA"}
-          </button>
-        </div>
-
-        {/* Sync Console Overlay */}
-        {isSyncing && (
-          <div className="bg-[#050505] border border-red-900/30 rounded-xl p-4 font-mono text-xs space-y-1.5 text-slate-300 text-left">
-            <div className="flex items-center justify-between text-red-500 font-bold border-b border-slate-850 pb-2 mb-2 uppercase tracking-wider">
-              <span>Terminal Pembaharuan Warta IHS</span>
-              <span className="flex h-2 w-2 rounded-full bg-red-500 animate-ping"></span>
-            </div>
-            {syncLogsConsole.map((log, i) => (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, x: -5 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.2 }}
-                className="leading-relaxed"
-              >
-                {log}
-              </motion.div>
-            ))}
-          </div>
-        )}
-
-        {/* Sync Success Badge */}
-        {showSyncSuccess && (
-          <motion.div 
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="bg-green-950/20 border border-green-900/40 text-green-400 text-xs sm:text-sm py-3 px-4 rounded-xl flex items-center gap-2 text-left"
-          >
-            <CheckCircle2 className="w-5 h-5 shrink-0 text-green-500" />
-            <span><strong>Pembaharuan Sukses!</strong> Warta berita harian berhasil diselaraskan dan diperbarui sepenuhnya di beranda.</span>
-          </motion.div>
-        )}
-
-        {/* News List - Giant High-Impact Cards */}
-        <div className="space-y-6 pt-1 text-left">
-          {news.length === 0 ? (
-            <div className="py-16 text-center text-xs text-slate-500 font-mono">
-              Menghubungkan ke server untuk memuat rilis berita harian...
-            </div>
-          ) : (
-            news.map((item) => (
-              <div 
-                key={item.id} 
-                className="bg-[#050505] border border-slate-850 hover:border-slate-800 rounded-2xl overflow-hidden flex flex-col md:flex-row transition-all duration-300 group shadow-lg"
-              >
-                {item.imageUrl && (
-                  <div className="md:w-2/5 h-52 sm:h-60 md:h-auto overflow-hidden relative shrink-0 border-b md:border-b-0 md:border-r border-slate-850 min-h-[220px]">
-                    <img 
-                      src={item.imageUrl} 
-                      alt={item.title} 
-                      className="w-full h-full object-cover group-hover:scale-102 transition duration-500"
-                      referrerPolicy="no-referrer"
-                    />
-                    <div className="absolute top-4 left-4 px-2.5 py-1 bg-red-950/90 border border-red-900 text-red-500 rounded-md text-[10px] font-bold font-mono uppercase tracking-wider shadow-md">
-                      {item.category}
-                    </div>
-                  </div>
-                )}
-                <div className="p-6 flex-1 flex flex-col justify-between space-y-4">
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-2">
-                      {!item.imageUrl && (
-                        <span className="inline-block px-2.5 py-1 bg-red-950/90 border border-red-900 text-red-500 rounded-md text-[10px] font-bold font-mono uppercase tracking-wider">
-                          {item.category}
-                        </span>
-                      )}
-                      <span className="px-2.5 py-1 bg-slate-900/80 border border-slate-800 text-slate-400 rounded-md text-[10px] font-bold font-mono uppercase tracking-wider">
-                        Rilis Resmi
-                      </span>
-                    </div>
-                    <h4 className="text-lg sm:text-xl md:text-2xl font-black text-white group-hover:text-red-500 transition-colors duration-200 leading-tight">
-                      {item.title}
-                    </h4>
-                    <p className="text-xs sm:text-sm text-slate-350 leading-relaxed font-sans">
-                      {item.summary}
-                    </p>
-                  </div>
-
-                  <div className="pt-4 border-t border-slate-850/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[11px] font-mono text-slate-400">
-                      <span className="flex items-center gap-1.5 bg-slate-950 px-2 py-1 rounded border border-slate-900">
-                        <Calendar className="w-3.5 h-3.5 text-red-500" />
-                        {new Date(item.date).toLocaleDateString("id-ID", { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
-                      </span>
-                      <span className="flex items-center gap-1.5 bg-slate-950 px-2 py-1 rounded border border-slate-900">
-                        <User className="w-3.5 h-3.5 text-slate-500" />
-                        Penerbit: {item.author}
-                      </span>
-                    </div>
-                    
-                    <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto justify-end">
-                      <button
-                        type="button"
-                        onClick={() => setSharingArticle(item)}
-                        className="px-4 py-2.5 bg-slate-900 hover:bg-slate-850 text-red-400 hover:text-red-350 border border-slate-800 hover:border-red-900/40 rounded-xl text-xs font-bold transition font-mono cursor-pointer flex items-center justify-center gap-1.5 uppercase tracking-wide shrink-0 active:scale-98"
-                        title="Bagikan Berita"
-                      >
-                        <Share2 className="w-3.5 h-3.5 text-red-500" />
-                        BAGIKAN
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setSelectedArticle(item)}
-                        className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-slate-200 hover:text-white border border-slate-800 hover:border-slate-700 rounded-xl text-xs font-bold transition font-mono cursor-pointer flex items-center justify-center gap-1 uppercase tracking-wide shrink-0 active:scale-98"
-                      >
-                        Baca Selengkapnya
-                        <ArrowRight className="w-3.5 h-3.5 text-red-500" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-      </div>
-
       {/* Main Stats Panel */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-[#0a0a0a] border border-slate-800 rounded-xl p-4 shadow-lg">
@@ -486,6 +298,146 @@ export default function HomeView({ onNavigate, cases, syncLogs, newsList }: Home
                   Gabung sebagai Advokat, LSM, Jurnalis atau Relawan Lapangan dalam satu kesatuan gerakan keadilan.
                 </p>
               </div>
+            </div>
+          </div>
+
+          {/* DAILY NEWS & SYNC REGISTRY SECTION - INSIDE MAIN GRID */}
+          <div className="bg-[#0a0a0a] border border-slate-800 rounded-xl p-5 space-y-6 shadow-2xl relative">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-850">
+              <div className="space-y-1 text-left">
+                <h3 className="text-md sm:text-lg font-black text-white flex items-center gap-2 font-mono tracking-wide uppercase">
+                  <Newspaper className="w-5 h-5 text-red-500" />
+                  WARTA HARIAN & RILIS PERS UTAMA
+                </h3>
+                <p className="text-[11px] sm:text-xs text-slate-400">
+                  Kanal publikasi resmi Satgas Intelijen Hukum Sipil (IHS) mengenai pengawasan wewenang dan pembelaan hak warga.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleManualSync}
+                disabled={isSyncing}
+                className={`px-4 py-2 bg-slate-900 border border-slate-800 hover:border-red-900/60 text-[10px] font-bold text-slate-200 hover:text-white rounded-lg flex items-center gap-1.5 transition shrink-0 cursor-pointer ${isSyncing ? "opacity-75" : ""}`}
+              >
+                <RefreshCw className={`w-3.5 h-3.5 text-red-500 ${isSyncing ? "animate-spin" : ""}`} />
+                {isSyncing ? "Memperbarui..." : "MUAT ULANG"}
+              </button>
+            </div>
+
+            {/* Sync Console Overlay */}
+            {isSyncing && (
+              <div className="bg-[#050505] border border-red-900/30 rounded-xl p-4 font-mono text-[10px] sm:text-xs space-y-1.5 text-slate-300 text-left">
+                <div className="flex items-center justify-between text-red-500 font-bold border-b border-slate-850 pb-2 mb-2 uppercase tracking-wider">
+                  <span>Terminal Pembaharuan Warta IHS</span>
+                  <span className="flex h-2 w-2 rounded-full bg-red-500 animate-ping"></span>
+                </div>
+                {syncLogsConsole.map((log, i) => (
+                  <motion.div
+                    key={i}
+                    initial={{ opacity: 0, x: -5 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="leading-relaxed"
+                  >
+                    {log}
+                  </motion.div>
+                ))}
+              </div>
+            )}
+
+            {/* Sync Success Badge */}
+            {showSyncSuccess && (
+              <motion.div 
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-green-950/20 border border-green-900/40 text-green-400 text-xs py-3 px-4 rounded-xl flex items-center gap-2 text-left"
+              >
+                <CheckCircle2 className="w-4 h-4 shrink-0 text-green-500" />
+                <span><strong>Pembaharuan Sukses!</strong> Warta berita harian berhasil diselaraskan dan diperbarui sepenuhnya di beranda.</span>
+              </motion.div>
+            )}
+
+            {/* News List - Giant High-Impact Cards inside grid column */}
+            <div className="space-y-5 pt-1 text-left">
+              {news.length === 0 ? (
+                <div className="py-16 text-center text-xs text-slate-500 font-mono">
+                  Menghubungkan ke server untuk memuat rilis berita harian...
+                </div>
+              ) : (
+                news.map((item) => (
+                  <div 
+                    key={item.id} 
+                    className="bg-[#050505] border border-slate-850 hover:border-slate-800 rounded-xl overflow-hidden flex flex-col md:flex-row transition-all duration-300 group shadow-lg"
+                  >
+                    {item.imageUrl && (
+                      <div className="md:w-5/12 h-44 sm:h-48 md:h-auto overflow-hidden relative shrink-0 border-b md:border-b-0 md:border-r border-slate-850 min-h-[160px]">
+                        <img 
+                          src={item.imageUrl} 
+                          alt={item.title} 
+                          className="w-full h-full object-cover group-hover:scale-102 transition duration-500"
+                          referrerPolicy="no-referrer"
+                        />
+                        <div className="absolute top-3 left-3 px-2 py-0.5 bg-red-950/90 border border-red-900 text-red-500 rounded text-[9px] font-bold font-mono uppercase tracking-wider shadow-md">
+                          {item.category}
+                        </div>
+                      </div>
+                    )}
+                    <div className="p-5 flex-1 flex flex-col justify-between space-y-3">
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-1.5">
+                          {!item.imageUrl && (
+                            <span className="inline-block px-2 py-0.5 bg-red-950/90 border border-red-900 text-red-500 rounded text-[9px] font-bold font-mono uppercase tracking-wider">
+                              {item.category}
+                            </span>
+                          )}
+                          <span className="px-2 py-0.5 bg-slate-900/80 border border-slate-800 text-slate-400 rounded text-[9px] font-bold font-mono uppercase tracking-wider">
+                            Rilis Resmi
+                          </span>
+                        </div>
+                        <h4 className="text-base sm:text-lg font-black text-white group-hover:text-red-500 transition-colors duration-200 leading-snug">
+                          {item.title}
+                        </h4>
+                        <p className="text-xs text-slate-350 leading-relaxed font-sans line-clamp-3">
+                          {item.summary}
+                        </p>
+                      </div>
+
+                      <div className="pt-3 border-t border-slate-850/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] font-mono text-slate-400">
+                          <span className="flex items-center gap-1 bg-slate-950 px-1.5 py-0.5 rounded border border-slate-900">
+                            <Calendar className="w-3.5 h-3.5 text-red-500" />
+                            {new Date(item.date).toLocaleDateString("id-ID", { day: 'numeric', month: 'short', year: 'numeric' })}
+                          </span>
+                          <span className="flex items-center gap-1 bg-slate-950 px-1.5 py-0.5 rounded border border-slate-900">
+                            <User className="w-3.5 h-3.5 text-slate-500" />
+                            Penerbit: {item.author.split(" ")[0]}
+                          </span>
+                        </div>
+                        
+                        <div className="flex items-center gap-1.5 shrink-0 w-full sm:w-auto justify-end">
+                          <button
+                            type="button"
+                            onClick={() => setSharingArticle(item)}
+                            className="px-3 py-1.5 bg-slate-900 hover:bg-slate-850 text-red-400 hover:text-red-350 border border-slate-800 hover:border-red-900/40 rounded-lg text-[10px] font-bold transition font-mono cursor-pointer flex items-center justify-center gap-1 uppercase tracking-wide shrink-0 active:scale-98 animate-pulse"
+                            title="Bagikan Berita"
+                          >
+                            <Share2 className="w-3 h-3 text-red-500 animate-pulse" />
+                            BAGIKAN
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setSelectedArticle(item)}
+                            className="px-3 py-1.5 bg-slate-900 hover:bg-slate-850 text-slate-200 hover:text-white border border-slate-800 hover:border-slate-700 rounded-lg text-[10px] font-bold transition font-mono cursor-pointer flex items-center justify-center gap-1 uppercase tracking-wide shrink-0 active:scale-98"
+                          >
+                            Baca
+                            <ArrowRight className="w-3.5 h-3.5 text-red-500" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
 
@@ -619,49 +571,81 @@ export default function HomeView({ onNavigate, cases, syncLogs, newsList }: Home
               </button>
             </div>
           </div>
-          {/* Live UTC Clock & Timezone Widget */}
-          <div className="bg-[#0a0a0a] border border-slate-800 rounded-xl p-4 text-center">
-            <div className="text-xs text-slate-500 font-mono tracking-widest uppercase">WAKTU AKTIF SISTEM</div>
-            <div className="text-2xl font-bold text-white font-mono mt-1">
-              {currentTime.toLocaleTimeString("id-ID")}
-            </div>
-            <div className="text-[10px] text-slate-400 font-mono mt-0.5">
-              WIB / WITA / WIT • {currentTime.toLocaleDateString("id-ID", { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-            </div>
-          </div>
-
-          {/* Central Server Synchronization Logs Tracker */}
-          <div className="bg-[#0a0a0a] border border-slate-800 rounded-xl p-5">
-            <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-800">
+          {/* SYSTEM MONITOR & KONEKSI (Unified Status panel) */}
+          <div className="bg-[#0a0a0a] border border-slate-800 rounded-xl p-5 space-y-4 shadow-xl text-left">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
               <span className="text-xs font-extrabold text-white tracking-wider flex items-center gap-1.5 font-mono">
-                <span className="w-2 h-2 rounded-full bg-green-500"></span>
-                AKTIVITAS SERVER PUSAT
+                <Activity className="w-4 h-4 text-green-500 animate-pulse" />
+                SISTEM MONITOR & KONEKSI
               </span>
-              <span className="text-[10px] font-mono text-slate-500">ihsid.org</span>
+              <span className="text-[9px] font-mono text-green-400 bg-green-950/40 px-1.5 py-0.5 rounded border border-green-900/30">ONLINE</span>
             </div>
 
-            <div className="space-y-3 max-h-[220px] overflow-y-auto pr-1">
-              {syncLogs.length === 0 ? (
-                <div className="text-center py-6 text-xs text-slate-500 font-mono">
-                  Belum ada log sinkronisasi terbaru.
+            {/* Live Clock & Timezone Widget */}
+            <div className="bg-[#050505] border border-slate-850 rounded-lg p-3 text-center">
+              <div className="text-[9px] text-slate-500 font-mono tracking-widest uppercase">WAKTU AKTIF SISTEM</div>
+              <div className="text-xl font-bold text-white font-mono mt-0.5">
+                {currentTime.toLocaleTimeString("id-ID")}
+              </div>
+              <div className="text-[9px] text-slate-400 font-mono">
+                WIB / WITA / WIT • {currentTime.toLocaleDateString("id-ID", { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
+              </div>
+            </div>
+
+            {/* Micro Connection & Security details */}
+            <div className="grid grid-cols-2 gap-2 text-[10px] font-mono">
+              <div className="bg-[#050505] border border-slate-850 p-2 rounded">
+                <span className="text-slate-500 block text-[8px] uppercase">GATEWAY</span>
+                <span className="text-slate-300 font-bold">www.ihsid.org</span>
+              </div>
+              <div className="bg-[#050505] border border-slate-850 p-2 rounded">
+                <span className="text-slate-500 block text-[8px] uppercase">SSL SECURE</span>
+                <span className="text-red-400 font-bold">AES-256 ENCRYPT</span>
+              </div>
+            </div>
+
+            {/* Hotline WhatsApp link consolidated */}
+            <div className="bg-[#050505] border border-slate-850 p-2.5 rounded flex items-center justify-between text-[11px] font-mono">
+              <div className="flex items-center gap-2">
+                <MessageCircle className="w-4 h-4 text-green-500 shrink-0" />
+                <div>
+                  <span className="text-slate-500 block text-[8px] uppercase">HOTLINE WA</span>
+                  <span className="text-slate-200 font-bold text-[10px]">0852-2232-2254</span>
                 </div>
-              ) : (
-                syncLogs.map((log) => (
-                  <div key={log.id} className="text-xs bg-[#050505] p-2.5 rounded border border-slate-800 font-mono space-y-1">
-                    <div className="flex items-center justify-between text-[10px]">
-                      <span className="text-red-500 font-bold text-[11px]">{log.action}</span>
-                      <span className="text-slate-500">
-                        {new Date(log.timestamp).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}
-                      </span>
-                    </div>
-                    <p className="text-slate-300 text-[11px] leading-relaxed">{log.detail}</p>
-                    <div className="flex items-center justify-between pt-1 text-[9px]">
-                      <span className="text-green-500 bg-green-950/20 px-1 rounded">SSL TERENKRIPSI</span>
-                      <span className="text-slate-500">PROSES: SUKSES</span>
-                    </div>
+              </div>
+              <a
+                href="https://wa.me/6285222322254"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[9px] text-green-400 hover:text-green-300 font-semibold bg-green-950/20 hover:bg-green-950/40 px-2 py-1 rounded border border-green-900/40 transition flex items-center gap-0.5"
+              >
+                HUBUNGI
+                <ExternalLink className="w-2.5 h-2.5" />
+              </a>
+            </div>
+
+            {/* Central Server Synchronization Logs Tracker */}
+            <div className="space-y-2.5 pt-1">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block font-mono">LOG AKTIVITAS TERBARU:</span>
+              <div className="space-y-2 max-h-[160px] overflow-y-auto pr-1">
+                {syncLogs.length === 0 ? (
+                  <div className="text-center py-4 text-[10px] text-slate-500 font-mono">
+                    Belum ada log sinkronisasi terbaru.
                   </div>
-                ))
-              )}
+                ) : (
+                  syncLogs.slice(0, 3).map((log) => (
+                    <div key={log.id} className="text-[10px] bg-[#050505] p-2 rounded border border-slate-850 font-mono space-y-1">
+                      <div className="flex items-center justify-between text-[8px]">
+                        <span className="text-red-500 font-bold uppercase">{log.action.split(" ")[0]}</span>
+                        <span className="text-slate-500">
+                          {new Date(log.timestamp).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}
+                        </span>
+                      </div>
+                      <p className="text-slate-350 text-[10px] leading-relaxed line-clamp-2">{log.detail}</p>
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
           </div>
 
