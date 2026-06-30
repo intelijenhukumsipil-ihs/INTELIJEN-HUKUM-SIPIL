@@ -159,7 +159,7 @@ export default function MediaEdukasiView({ newsList, onCreatePublication, user, 
           const parsed = JSON.parse(err.message);
           if (parsed && parsed.error) {
             if (parsed.error.includes("Missing or insufficient permissions")) {
-              errMsg = "Gagal: Hak akses ditolak. Hanya email intelijenhukumsipil@gmail.com yang memiliki wewenang menerbitkan rilis pers resmi.";
+              errMsg = "Gagal: Hak akses ditolak. Hanya Admin, Pimpinan, atau Anggota Lapangan yang memiliki wewenang menerbitkan rilis pers resmi.";
             } else {
               errMsg = `Gagal: ${parsed.error}`;
             }
@@ -168,7 +168,7 @@ export default function MediaEdukasiView({ newsList, onCreatePublication, user, 
           }
         } catch {
           if (err.message.includes("insufficient permissions")) {
-            errMsg = "Gagal: Hak akses ditolak. Hanya email intelijenhukumsipil@gmail.com yang memiliki wewenang menerbitkan rilis pers resmi.";
+            errMsg = "Gagal: Hak akses ditolak. Hanya Admin, Pimpinan, atau Anggota Lapangan yang memiliki wewenang menerbitkan rilis pers resmi.";
           } else {
             errMsg = err.message;
           }
@@ -222,7 +222,7 @@ export default function MediaEdukasiView({ newsList, onCreatePublication, user, 
             <form onSubmit={handleCreateRelease} className="p-6 space-y-4 max-h-[550px] overflow-y-auto">
               {!user && (
                 <div className="p-4 bg-yellow-950/40 border border-yellow-900 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-yellow-400">
-                  <span className="text-left">Anda belum masuk. Silakan masuk terlebih dahulu dengan akun pengelola IHS (intelijenhukumsipil@gmail.com) agar dapat menerbitkan rilis berita.</span>
+                  <span className="text-left">Anda belum masuk. Silakan masuk terlebih dahulu dengan akun pengelola IHS (Operator Pusat/Admin, Pimpinan, atau Anggota Lapangan) agar dapat menerbitkan rilis berita.</span>
                   {onLogin && (
                     <button
                       type="button"

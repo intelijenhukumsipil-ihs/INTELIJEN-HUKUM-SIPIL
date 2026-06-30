@@ -105,11 +105,19 @@ service cloud.firestore {
           && data.category is string && data.category.size() <= 100;
       }
 
-      allow create: if isVerifiedUser() && isAdmin()
+      allow create: if isVerifiedUser() && (
+          isAdmin() || 
+          request.auth.token.email == 'anggota@ihsid.org' || 
+          exists(/databases/$(database)/documents/members/$(request.auth.uid))
+        )
         && isValidId(pubId)
         && isValidPub(incoming());
 
-      allow update: if isVerifiedUser() && isAdmin()
+      allow update: if isVerifiedUser() && (
+          isAdmin() || 
+          request.auth.token.email == 'anggota@ihsid.org' || 
+          exists(/databases/$(database)/documents/members/$(request.auth.uid))
+        )
         && isValidId(pubId)
         && isValidPub(incoming());
 
