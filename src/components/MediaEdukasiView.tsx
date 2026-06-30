@@ -19,13 +19,16 @@ import {
   Trash2
 } from "lucide-react";
 import { NewsItem } from "../types";
+import { User as FirebaseUser } from "firebase/auth";
 
 interface MediaEdukasiViewProps {
   newsList: NewsItem[];
   onCreatePublication: (newPub: Omit<NewsItem, 'id' | 'date' | 'author'>) => Promise<any>;
+  user?: FirebaseUser | null;
+  onLogin?: () => void;
 }
 
-export default function MediaEdukasiView({ newsList, onCreatePublication }: MediaEdukasiViewProps) {
+export default function MediaEdukasiView({ newsList, onCreatePublication, user, onLogin }: MediaEdukasiViewProps) {
   const [copiedPubId, setCopiedPubId] = useState<string | null>(null);
   const [selectedPub, setSelectedPub] = useState<NewsItem | null>(newsList[0] || null);
   const [isDrafting, setIsDrafting] = useState(false);
@@ -49,14 +52,45 @@ export default function MediaEdukasiView({ newsList, onCreatePublication }: Medi
       setDraftError("Format berkas harus berupa JPG atau PNG.");
       return;
     }
-    if (file.size > 10 * 1024 * 1024) { // 10MB limit
-      setDraftError("Ukuran berkas gambar tidak boleh melebihi 10MB.");
-      return;
-    }
+    
+    setDraftError("");
     const reader = new FileReader();
     reader.onload = (uploadEvent) => {
       if (uploadEvent.target?.result) {
-        setImageUrl(uploadEvent.target.result as string);
+        const img = document.createElement("img");
+        img.src = uploadEvent.target.result as string;
+        img.onload = () => {
+          // Compress using Canvas to stay well within Firestore 1MB limits
+          const canvas = document.createElement("canvas");
+          const MAX_WIDTH = 800;
+          const MAX_HEIGHT = 600;
+          let width = img.width;
+          let height = img.height;
+
+          if (width > height) {
+            if (width > MAX_WIDTH) {
+              height *= MAX_WIDTH / width;
+              width = MAX_WIDTH;
+            }
+          } else {
+            if (height > MAX_HEIGHT) {
+              width *= MAX_HEIGHT / height;
+              height = MAX_HEIGHT;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext("2d");
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, width, height);
+            // Export as JPEG with 0.7 quality to keep it very small (typically 30-70KB)
+            const compressedBase64 = canvas.toDataURL("image/jpeg", 0.7);
+            setImageUrl(compressedBase64);
+          } else {
+            setImageUrl(uploadEvent.target?.result as string);
+          }
+        };
       }
     };
     reader.readAsDataURL(file);
@@ -90,6 +124,11 @@ export default function MediaEdukasiView({ newsList, onCreatePublication }: Medi
     e.preventDefault();
     setDraftError("");
 
+    if (!user) {
+      setDraftError("Anda harus masuk terlebih dahulu menggunakan akun pengelola IHS.");
+      return;
+    }
+
     if (!title.trim() || !summary.trim() || !content.trim()) {
       setDraftError("Mohon lengkapi seluruh kolom wajib untuk meluncurkan rilis pers.");
       return;
@@ -114,7 +153,28 @@ export default function MediaEdukasiView({ newsList, onCreatePublication }: Medi
       setImageUrl("");
       setImageMode("upload");
     } catch (err: any) {
-      setDraftError("Gagal mempublikasikan rilis berita harian.");
+      let errMsg = "Gagal mempublikasikan rilis berita harian.";
+      if (err instanceof Error) {
+        try {
+          const parsed = JSON.parse(err.message);
+          if (parsed && parsed.error) {
+            if (parsed.error.includes("Missing or insufficient permissions")) {
+              errMsg = "Gagal: Hak akses ditolak. Hanya email intelijenhukumsipil@gmail.com yang memiliki wewenang menerbitkan rilis pers resmi.";
+            } else {
+              errMsg = `Gagal: ${parsed.error}`;
+            }
+          } else {
+            errMsg = err.message;
+          }
+        } catch {
+          if (err.message.includes("insufficient permissions")) {
+            errMsg = "Gagal: Hak akses ditolak. Hanya email intelijenhukumsipil@gmail.com yang memiliki wewenang menerbitkan rilis pers resmi.";
+          } else {
+            errMsg = err.message;
+          }
+        }
+      }
+      setDraftError(errMsg);
     } finally {
       setIsSubmitting(false);
     }
@@ -160,6 +220,21 @@ export default function MediaEdukasiView({ newsList, onCreatePublication }: Medi
             </div>
 
             <form onSubmit={handleCreateRelease} className="p-6 space-y-4 max-h-[550px] overflow-y-auto">
+              {!user && (
+                <div className="p-4 bg-yellow-950/40 border border-yellow-900 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-yellow-400">
+                  <span className="text-left">Anda belum masuk. Silakan masuk terlebih dahulu dengan akun pengelola IHS (intelijenhukumsipil@gmail.com) agar dapat menerbitkan rilis berita.</span>
+                  {onLogin && (
+                    <button
+                      type="button"
+                      onClick={onLogin}
+                      className="px-3 py-1.5 bg-yellow-600 hover:bg-yellow-500 text-black font-bold font-mono tracking-wide rounded cursor-pointer shrink-0 transition text-xs"
+                    >
+                      MASUK SEKARANG
+                    </button>
+                  )}
+                </div>
+              )}
+
               {draftError && (
                 <div className="p-3 bg-red-950/40 border border-red-900 text-red-400 rounded text-xs">
                   {draftError}

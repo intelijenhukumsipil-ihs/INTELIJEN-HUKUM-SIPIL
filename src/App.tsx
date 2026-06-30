@@ -717,6 +717,8 @@ export default function App() {
             <MediaEdukasiView 
               newsList={newsList} 
               onCreatePublication={handleCreatePublication}
+              user={user}
+              onLogin={handleLogin}
             />
           )}
 
