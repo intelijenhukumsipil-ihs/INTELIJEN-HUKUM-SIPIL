@@ -314,6 +314,27 @@ export default function App() {
     }
   };
 
+  // Handler: Update Case Status
+  const handleUpdateCaseStatus = async (caseId: string, newStatus: CaseReport['status']) => {
+    if (!user) return;
+    try {
+      await updateDoc(doc(db, "cases", caseId), {
+        status: newStatus
+      });
+
+      const logId = `log_${Date.now()}`;
+      await setDoc(doc(db, "sync_logs", logId), {
+        id: logId,
+        timestamp: new Date().toISOString(),
+        action: "Pembaruan Status Kasus",
+        detail: `Mengubah status kasus ke ${newStatus.toUpperCase()}`,
+        status: "sukses"
+      });
+    } catch (err) {
+      handleFirestoreError(err, OperationType.WRITE, `cases/${caseId}`);
+    }
+  };
+
   // Handler: Create news publication
   const handleCreatePublication = async (newPubData: Omit<NewsItem, 'id' | 'date' | 'author'>) => {
     if (!user) throw new Error("Silakan masuk terlebih dahulu.");
@@ -667,6 +688,7 @@ export default function App() {
               <InvestigationView 
                 cases={cases} 
                 onTriggerAIAnalysis={handleTriggerAIAnalysis}
+                onUpdateCaseStatus={handleUpdateCaseStatus}
               />
             ) : renderAuthPrompt("Investigasi")
           )}

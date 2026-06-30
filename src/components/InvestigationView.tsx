@@ -24,13 +24,15 @@ import { CaseReport } from "../types";
 interface InvestigationViewProps {
   cases: CaseReport[];
   onTriggerAIAnalysis: (caseId: string) => Promise<any>;
+  onUpdateCaseStatus?: (caseId: string, newStatus: CaseReport['status']) => Promise<any>;
 }
 
-export default function InvestigationView({ cases, onTriggerAIAnalysis }: InvestigationViewProps) {
+export default function InvestigationView({ cases, onTriggerAIAnalysis, onUpdateCaseStatus }: InvestigationViewProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("Semua");
   const [selectedStatus, setSelectedStatus] = useState<string>("Semua");
-  const [selectedCase, setSelectedCase] = useState<CaseReport | null>(cases[0] || null);
+  const [selectedCaseId, setSelectedCaseId] = useState<string | null>(cases[0]?.id || null);
+  const selectedCase = cases.find(c => c.id === selectedCaseId) || cases[0] || null;
   const [analyzingCaseId, setAnalyzingCaseId] = useState<string | null>(null);
 
   // Status mapping helper
@@ -105,10 +107,7 @@ export default function InvestigationView({ cases, onTriggerAIAnalysis }: Invest
   const handleRunAIAnalysis = async (caseId: string) => {
     setAnalyzingCaseId(caseId);
     try {
-      const updatedAnalysis = await onTriggerAIAnalysis(caseId);
-      if (selectedCase && selectedCase.id === caseId) {
-        setSelectedCase({ ...selectedCase, aiAnalysis: updatedAnalysis });
-      }
+      await onTriggerAIAnalysis(caseId);
     } catch (err) {
       console.error(err);
     } finally {
@@ -211,9 +210,9 @@ export default function InvestigationView({ cases, onTriggerAIAnalysis }: Invest
               filteredCases.map((c) => (
                 <div 
                   key={c.id}
-                  onClick={() => setSelectedCase(c)}
+                  onClick={() => setSelectedCaseId(c.id)}
                   className={`p-3.5 hover:bg-slate-900/40 cursor-pointer transition text-left space-y-2 ${
-                    selectedCase?.id === c.id ? "bg-slate-900/60 border-l-2 border-red-600" : ""
+                    selectedCaseId === c.id ? "bg-slate-900/60 border-l-2 border-red-600" : ""
                   }`}
                 >
                   <div className="flex items-center justify-between">
@@ -248,6 +247,25 @@ export default function InvestigationView({ cases, onTriggerAIAnalysis }: Invest
                       BERKAS INTELIJEN SIPIL: {selectedCase.ticketNumber}
                     </span>
                     {renderStatusBadge(selectedCase.status)}
+                    {onUpdateCaseStatus && (
+                      <div className="flex items-center gap-1.5 ml-1">
+                        <span className="text-[10px] text-slate-500 font-mono uppercase tracking-wider">Ubah Progres:</span>
+                        <select
+                          value={selectedCase.status}
+                          onChange={async (e) => {
+                            const newStatus = e.target.value as any;
+                            await onUpdateCaseStatus(selectedCase.id, newStatus);
+                          }}
+                          className="bg-[#050505] border border-slate-800 text-[10px] rounded px-2 py-0.5 text-slate-300 font-mono focus:border-red-650 outline-none cursor-pointer transition hover:bg-slate-900"
+                        >
+                          <option value="diterima">DITERIMA</option>
+                          <option value="verifikasi">VERIFIKASI</option>
+                          <option value="penanganan">DIADVOKASI</option>
+                          <option value="selesai">SELESAI</option>
+                          <option value="ditutup">DITUTUP</option>
+                        </select>
+                      </div>
+                    )}
                   </div>
                   <h3 className="text-lg sm:text-xl font-extrabold text-white leading-snug font-sans tracking-tight">{selectedCase.title}</h3>
                   <p className="text-xs text-slate-400 flex items-center gap-3">
