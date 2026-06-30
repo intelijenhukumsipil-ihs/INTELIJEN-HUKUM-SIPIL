@@ -18,7 +18,11 @@ import {
   Calendar,
   User,
   Globe,
-  CheckCircle2
+  CheckCircle2,
+  Share2,
+  Copy,
+  Check,
+  Send
 } from "lucide-react";
 import { motion } from "motion/react";
 import { CaseReport } from "../types";
@@ -52,6 +56,15 @@ export default function HomeView({ onNavigate, cases, syncLogs, newsList }: Home
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncLogsConsole, setSyncLogsConsole] = useState<string[]>([]);
   const [showSyncSuccess, setShowSyncSuccess] = useState(false);
+  const [sharingArticle, setSharingArticle] = useState<any | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  const handleCopyLink = (id: string) => {
+    const shareUrl = `https://www.ihsid.org/warta/${id}`;
+    navigator.clipboard.writeText(shareUrl);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   const news = newsList;
 
@@ -206,6 +219,146 @@ export default function HomeView({ onNavigate, cases, syncLogs, newsList }: Home
         </div>
       </div>
 
+      {/* DAILY NEWS & SYNC REGISTRY SECTION - FULL WIDTH HEADLINES */}
+      <div className="bg-[#0a0a0a] border border-slate-800 rounded-2xl p-6 sm:p-8 space-y-6 shadow-2xl relative">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-850">
+          <div className="space-y-1 text-left">
+            <h3 className="text-xl font-black text-white flex items-center gap-2.5 font-mono tracking-wide uppercase">
+              <Newspaper className="w-6 h-6 text-red-500" />
+              WARTA HARIAN & RILIS PERS UTAMA
+            </h3>
+            <p className="text-xs sm:text-sm text-slate-400">
+              Kanal publikasi resmi Satgas Intelijen Hukum Sipil (IHS) mengenai pengawasan wewenang dan pembelaan hak warga.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={handleManualSync}
+            disabled={isSyncing}
+            className={`px-5 py-2.5 bg-slate-900 border border-slate-800 hover:border-red-900/60 text-xs font-bold text-slate-200 hover:text-white rounded-xl flex items-center gap-2 transition shrink-0 cursor-pointer ${isSyncing ? "opacity-75" : ""}`}
+          >
+            <RefreshCw className={`w-4 h-4 text-red-500 ${isSyncing ? "animate-spin" : ""}`} />
+            {isSyncing ? "Memperbarui..." : "MUAT ULANG BERITA"}
+          </button>
+        </div>
+
+        {/* Sync Console Overlay */}
+        {isSyncing && (
+          <div className="bg-[#050505] border border-red-900/30 rounded-xl p-4 font-mono text-xs space-y-1.5 text-slate-300 text-left">
+            <div className="flex items-center justify-between text-red-500 font-bold border-b border-slate-850 pb-2 mb-2 uppercase tracking-wider">
+              <span>Terminal Pembaharuan Warta IHS</span>
+              <span className="flex h-2 w-2 rounded-full bg-red-500 animate-ping"></span>
+            </div>
+            {syncLogsConsole.map((log, i) => (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, x: -5 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.2 }}
+                className="leading-relaxed"
+              >
+                {log}
+              </motion.div>
+            ))}
+          </div>
+        )}
+
+        {/* Sync Success Badge */}
+        {showSyncSuccess && (
+          <motion.div 
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-green-950/20 border border-green-900/40 text-green-400 text-xs sm:text-sm py-3 px-4 rounded-xl flex items-center gap-2 text-left"
+          >
+            <CheckCircle2 className="w-5 h-5 shrink-0 text-green-500" />
+            <span><strong>Pembaharuan Sukses!</strong> Warta berita harian berhasil diselaraskan dan diperbarui sepenuhnya di beranda.</span>
+          </motion.div>
+        )}
+
+        {/* News List - Giant High-Impact Cards */}
+        <div className="space-y-6 pt-1 text-left">
+          {news.length === 0 ? (
+            <div className="py-16 text-center text-xs text-slate-500 font-mono">
+              Menghubungkan ke server untuk memuat rilis berita harian...
+            </div>
+          ) : (
+            news.map((item) => (
+              <div 
+                key={item.id} 
+                className="bg-[#050505] border border-slate-850 hover:border-slate-800 rounded-2xl overflow-hidden flex flex-col md:flex-row transition-all duration-300 group shadow-lg"
+              >
+                {item.imageUrl && (
+                  <div className="md:w-2/5 h-52 sm:h-60 md:h-auto overflow-hidden relative shrink-0 border-b md:border-b-0 md:border-r border-slate-850 min-h-[220px]">
+                    <img 
+                      src={item.imageUrl} 
+                      alt={item.title} 
+                      className="w-full h-full object-cover group-hover:scale-102 transition duration-500"
+                      referrerPolicy="no-referrer"
+                    />
+                    <div className="absolute top-4 left-4 px-2.5 py-1 bg-red-950/90 border border-red-900 text-red-500 rounded-md text-[10px] font-bold font-mono uppercase tracking-wider shadow-md">
+                      {item.category}
+                    </div>
+                  </div>
+                )}
+                <div className="p-6 flex-1 flex flex-col justify-between space-y-4">
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      {!item.imageUrl && (
+                        <span className="inline-block px-2.5 py-1 bg-red-950/90 border border-red-900 text-red-500 rounded-md text-[10px] font-bold font-mono uppercase tracking-wider">
+                          {item.category}
+                        </span>
+                      )}
+                      <span className="px-2.5 py-1 bg-slate-900/80 border border-slate-800 text-slate-400 rounded-md text-[10px] font-bold font-mono uppercase tracking-wider">
+                        Rilis Resmi
+                      </span>
+                    </div>
+                    <h4 className="text-lg sm:text-xl md:text-2xl font-black text-white group-hover:text-red-500 transition-colors duration-200 leading-tight">
+                      {item.title}
+                    </h4>
+                    <p className="text-xs sm:text-sm text-slate-350 leading-relaxed font-sans">
+                      {item.summary}
+                    </p>
+                  </div>
+
+                  <div className="pt-4 border-t border-slate-850/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[11px] font-mono text-slate-400">
+                      <span className="flex items-center gap-1.5 bg-slate-950 px-2 py-1 rounded border border-slate-900">
+                        <Calendar className="w-3.5 h-3.5 text-red-500" />
+                        {new Date(item.date).toLocaleDateString("id-ID", { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                      </span>
+                      <span className="flex items-center gap-1.5 bg-slate-950 px-2 py-1 rounded border border-slate-900">
+                        <User className="w-3.5 h-3.5 text-slate-500" />
+                        Penerbit: {item.author}
+                      </span>
+                    </div>
+                    
+                    <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto justify-end">
+                      <button
+                        type="button"
+                        onClick={() => setSharingArticle(item)}
+                        className="px-4 py-2.5 bg-slate-900 hover:bg-slate-850 text-red-400 hover:text-red-350 border border-slate-800 hover:border-red-900/40 rounded-xl text-xs font-bold transition font-mono cursor-pointer flex items-center justify-center gap-1.5 uppercase tracking-wide shrink-0 active:scale-98"
+                        title="Bagikan Berita"
+                      >
+                        <Share2 className="w-3.5 h-3.5 text-red-500" />
+                        BAGIKAN
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedArticle(item)}
+                        className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-slate-200 hover:text-white border border-slate-800 hover:border-slate-700 rounded-xl text-xs font-bold transition font-mono cursor-pointer flex items-center justify-center gap-1 uppercase tracking-wide shrink-0 active:scale-98"
+                      >
+                        Baca Selengkapnya
+                        <ArrowRight className="w-3.5 h-3.5 text-red-500" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+
       {/* Main Stats Panel */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-[#0a0a0a] border border-slate-800 rounded-xl p-4 shadow-lg">
@@ -238,26 +391,33 @@ export default function HomeView({ onNavigate, cases, syncLogs, newsList }: Home
           <p className="text-xs text-slate-400 mt-2 flex items-center gap-1">
             <span className="text-green-500 font-bold">&#8226;</span> Hak sipil warga terpenuhi
           </p>
-        </div>
-      </div>
-
-      {/* Main Grid Content */}
+             {/* Main Grid Content */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Column: Quick Action Cards */}
         <div className="lg:col-span-2 space-y-6">
-          <div className="bg-[#0a0a0a] border border-slate-800 rounded-xl p-6">
-            <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-              <Zap className="w-5 h-5 text-red-500" />
-              Layanan Intelijen Cepat (Quick Access)
-            </h3>
+          {/* Layanan Intelijen Cepat (Quick Access) */}
+          <div className="bg-[#0a0a0a] border border-slate-800 rounded-xl p-6 shadow-xl relative overflow-hidden">
+            {/* Subtle highlight gradient */}
+            <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-red-600 via-red-900 to-transparent"></div>
+            
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="text-lg font-black text-white flex items-center gap-2 font-mono uppercase tracking-wide">
+                <Zap className="w-5 h-5 text-red-500 animate-pulse" />
+                Layanan Intelijen Cepat
+              </h3>
+              <div className="flex items-center gap-1 bg-red-950/45 border border-red-900/30 px-2.5 py-0.5 rounded-full text-[9px] font-mono text-red-400 font-bold">
+                <span className="w-1.5 h-1.5 bg-red-500 rounded-full animate-ping"></span>
+                RESPON LIVE 24/7
+              </div>
+            </div>
             
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div 
                 onClick={() => onNavigate("lapor")}
-                className="bg-[#050505] border border-slate-800 hover:border-red-900/60 p-4 rounded-xl cursor-pointer transition group"
+                className="bg-[#050505] border border-slate-850 hover:border-red-900/40 p-4 rounded-xl cursor-pointer transition-all duration-300 group hover:shadow-lg hover:shadow-red-950/10"
               >
                 <div className="text-red-500 font-bold text-sm flex items-center justify-between group-hover:text-red-400">
-                  <span>Lapor Pelanggaran / Sengketa</span>
+                  <span className="font-mono uppercase tracking-wide text-xs">Lapor Pelanggaran / Sengketa</span>
                   <ArrowRight className="w-4 h-4 transform group-hover:translate-x-1 transition" />
                 </div>
                 <p className="text-slate-400 text-xs mt-1.5 leading-relaxed">
@@ -267,10 +427,10 @@ export default function HomeView({ onNavigate, cases, syncLogs, newsList }: Home
 
               <div 
                 onClick={() => onNavigate("konsultasi")}
-                className="bg-[#050505] border border-slate-800 hover:border-slate-700 p-4 rounded-xl cursor-pointer transition group"
+                className="bg-[#050505] border border-slate-850 hover:border-slate-750 p-4 rounded-xl cursor-pointer transition-all duration-300 group hover:shadow-lg"
               >
                 <div className="text-slate-200 font-bold text-sm flex items-center justify-between group-hover:text-white">
-                  <span>Konsultasi AI Advokat</span>
+                  <span className="font-mono uppercase tracking-wide text-xs">Konsultasi AI Advokat</span>
                   <ArrowRight className="w-4 h-4 transform group-hover:translate-x-1 transition" />
                 </div>
                 <p className="text-slate-400 text-xs mt-1.5 leading-relaxed">
@@ -280,10 +440,10 @@ export default function HomeView({ onNavigate, cases, syncLogs, newsList }: Home
 
               <div 
                 onClick={() => onNavigate("hukum")}
-                className="bg-[#050505] border border-slate-800 hover:border-slate-700 p-4 rounded-xl cursor-pointer transition group"
+                className="bg-[#050505] border border-slate-850 hover:border-slate-750 p-4 rounded-xl cursor-pointer transition-all duration-300 group hover:shadow-lg"
               >
                 <div className="text-slate-200 font-bold text-sm flex items-center justify-between group-hover:text-white">
-                  <span>Arsip & Template Somasi</span>
+                  <span className="font-mono uppercase tracking-wide text-xs">Arsip & Template Somasi</span>
                   <ArrowRight className="w-4 h-4 transform group-hover:translate-x-1 transition" />
                 </div>
                 <p className="text-slate-400 text-xs mt-1.5 leading-relaxed">
@@ -293,10 +453,10 @@ export default function HomeView({ onNavigate, cases, syncLogs, newsList }: Home
 
               <div 
                 onClick={() => onNavigate("jaringan")}
-                className="bg-[#050505] border border-slate-800 hover:border-slate-700 p-4 rounded-xl cursor-pointer transition group"
+                className="bg-[#050505] border border-slate-850 hover:border-slate-750 p-4 rounded-xl cursor-pointer transition-all duration-300 group hover:shadow-lg"
               >
                 <div className="text-slate-200 font-bold text-sm flex items-center justify-between group-hover:text-white">
-                  <span>Gabung Jaringan Pembela</span>
+                  <span className="font-mono uppercase tracking-wide text-xs">Gabung Jaringan Pembela</span>
                   <ArrowRight className="w-4 h-4 transform group-hover:translate-x-1 transition" />
                 </div>
                 <p className="text-slate-400 text-xs mt-1.5 leading-relaxed">
@@ -306,190 +466,82 @@ export default function HomeView({ onNavigate, cases, syncLogs, newsList }: Home
             </div>
           </div>
 
-          {/* Misi Utama Info Board */}
-          <div className="bg-[#0a0a0a] border border-slate-800 rounded-xl p-6 relative overflow-hidden">
-            <div className="absolute top-0 right-0 p-4 opacity-5">
-              <Shield className="w-32 h-32 text-white" />
-            </div>
-            <h3 className="text-lg font-bold text-white mb-3">Misi Gerakan Intelijen Hukum Sipil</h3>
-            <ul className="space-y-3.5 text-slate-300 text-sm">
-              <li className="flex items-start gap-2.5">
-                <span className="w-5 h-5 rounded-full bg-red-950 border border-red-800 text-red-500 flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">1</span>
-                <div>
-                  <strong className="text-white">Pengumpulan Fakta Akurat (Klandestin Sipil):</strong> Membantu korban mengamankan bukti digital dan fisik yang sah dan tak terbantahkan untuk dibawa ke pengadilan.
-                </div>
-              </li>
-              <li className="flex items-start gap-2.5">
-                <span className="w-5 h-5 rounded-full bg-red-950 border border-red-800 text-red-500 flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">2</span>
-                <div>
-                  <strong className="text-white">Demokratisasi Advokasi:</strong> Menyediakan template dokumen hukum siap pakai agar rakyat tidak tergantung pada jasa hukum komersial mahal.
-                </div>
-              </li>
-              <li className="flex items-start gap-2.5">
-                <span className="w-5 h-5 rounded-full bg-red-950 border border-red-800 text-red-500 flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">3</span>
-                <div>
-                  <strong className="text-white">Pengawasan Kuasa Hukum:</strong> Melaporkan dan mengawal kinerja kepolisian, instansi kehutanan, pertanahan, serta aparatur negara agar terbebas dari mafia tanah dan sengketa sepihak.
-                </div>
-              </li>
-            </ul>
-          </div>
-
-          {/* DPP LBH Delik Hukum Negara Info Card */}
-          <div className="bg-[#0a0a0a] border border-slate-800 rounded-xl p-6 relative overflow-hidden shadow-xl">
-            <div className="absolute top-0 right-0 p-4 opacity-5">
-              <Award className="w-32 h-32 text-red-500" />
-            </div>
-            
-            <div className="flex flex-col sm:flex-row items-center sm:items-start gap-5">
-              <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-red-850 to-red-600 flex items-center justify-center font-bold text-white text-xl shadow-lg shadow-red-950/40 shrink-0 border border-slate-750 font-mono">
-                DPP
+          {/* Bento Info: Misi & LBH Side-by-Side to prevent pushing the screen layout downward */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Misi Utama Info Board */}
+            <div className="bg-[#0a0a0a] border border-slate-800 rounded-xl p-5 relative overflow-hidden flex flex-col justify-between shadow-lg">
+              <div className="absolute top-0 right-0 p-3 opacity-5">
+                <Shield className="w-24 h-24 text-white" />
               </div>
-              <div className="space-y-2 text-center sm:text-left flex-1">
-                <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-red-950/40 border border-red-900/40 text-red-500 rounded-full text-[10px] font-mono font-bold tracking-wider uppercase">
-                  <UserCheck className="w-3.5 h-3.5" />
-                  KOMANDO UTAMA NASIONAL
-                </div>
-                <h3 className="text-sm font-black text-white uppercase tracking-wider font-mono leading-snug">
-                  DEWAN PIMPINAN PUSAT LEMBAGA BANTUAN HUKUM DELIK HUKUM NEGARA
+              <div className="space-y-4">
+                <h3 className="text-sm font-black text-white tracking-wide uppercase font-mono flex items-center gap-1.5 border-b border-slate-850 pb-2">
+                  <Shield className="w-4 h-4 text-red-500" />
+                  Misi Gerakan IHS
                 </h3>
-                <div className="pt-1.5 pb-2 border-y border-slate-850 flex flex-wrap gap-x-6 gap-y-2 items-center justify-center sm:justify-start">
-                  <div>
-                    <span className="text-[10px] text-slate-500 font-mono uppercase tracking-wider block">KETUA UMUM:</span>
-                    <span className="text-sm font-extrabold text-red-500 font-mono tracking-wide">KAPTEN IWAN</span>
+                <ul className="space-y-3 text-slate-300 text-xs">
+                  <li className="flex items-start gap-2">
+                    <span className="w-4 h-4 rounded-full bg-red-950 border border-red-800 text-red-500 flex items-center justify-center font-bold text-[10px] shrink-0 mt-0.5">1</span>
+                    <div>
+                      <strong className="text-white">Fakta Akurat:</strong> Membantu korban mengamankan bukti primer yang sah dan tak terbantahkan untuk jalur hukum.
+                    </div>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="w-4 h-4 rounded-full bg-red-950 border border-red-800 text-red-500 flex items-center justify-center font-bold text-[10px] shrink-0 mt-0.5">2</span>
+                    <div>
+                      <strong className="text-white">Demokratisasi Advokasi:</strong> Menyediakan template somasi mandiri agar rakyat lepas dari beban jasa hukum komersial yang mahal.
+                    </div>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="w-4 h-4 rounded-full bg-red-950 border border-red-800 text-red-500 flex items-center justify-center font-bold text-[10px] shrink-0 mt-0.5">3</span>
+                    <div>
+                      <strong className="text-white">Pengawasan Kuasa:</strong> Melaporkan & mengawal kinerja aparatur negara agar terbebas dari penyalahgunaan wewenang.
+                    </div>
+                  </li>
+                </ul>
+              </div>
+            </div>
+
+            {/* DPP LBH Delik Hukum Negara Info Card */}
+            <div className="bg-[#0a0a0a] border border-slate-800 rounded-xl p-5 relative overflow-hidden shadow-xl flex flex-col justify-between">
+              <div className="absolute top-0 right-0 p-3 opacity-5">
+                <Award className="w-24 h-24 text-red-500" />
+              </div>
+              
+              <div className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-red-900 to-red-600 flex items-center justify-center font-bold text-white text-xs shadow-md shrink-0 border border-slate-700 font-mono">
+                    DPP
                   </div>
-                  <div className="hidden sm:block h-6 w-[1px] bg-slate-850"></div>
-                  <div>
-                    <span className="text-[10px] text-slate-500 font-mono uppercase tracking-wider block">YURIDIKSI:</span>
-                    <span className="text-xs font-bold text-slate-300 font-sans">REPUBLIK INDONESIA</span>
+                  <div className="space-y-0.5">
+                    <div className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-red-950/40 border border-red-900/40 text-red-500 rounded-full text-[8px] font-mono font-bold tracking-wider uppercase">
+                      <UserCheck className="w-3 h-3" />
+                      KOMANDO PUSAT
+                    </div>
+                    <h4 className="text-[11px] font-black text-white uppercase tracking-wider font-mono leading-tight">
+                      LBH DELIK HUKUM NEGARA
+                    </h4>
                   </div>
                 </div>
-                <p className="text-xs text-slate-400 leading-relaxed font-sans pt-1">
-                  Melalui kepemimpinan komando terpusat LBH Delik Hukum Negara, kami berkomitmen penuh memberikan bantuan hukum yang tangguh, 
-                  pro-bono untuk warga tertindas, serta menggalang koordinasi lapangan dengan Satgas Intelijen Hukum Sipil (IHS) di seluruh wilayah nusantara.
+
+                <div className="pt-2 pb-2 border-y border-slate-850 flex items-center justify-between text-[10px]">
+                  <div>
+                    <span className="text-[9px] text-slate-500 font-mono block">KETUA UMUM:</span>
+                    <span className="font-extrabold text-red-500 font-mono">KAPTEN IWAN</span>
+                  </div>
+                  <div className="h-6 w-[1px] bg-slate-850"></div>
+                  <div>
+                    <span className="text-[9px] text-slate-500 font-mono block">YURIDIKSI:</span>
+                    <span className="font-bold text-slate-300">INDONESIA</span>
+                  </div>
+                </div>
+
+                <p className="text-[11px] text-slate-400 leading-relaxed font-sans">
+                  LBH Delik Hukum Negara berkomitmen memberikan perlindungan hukum pro-bono bagi warga tertindas, serta bersinergi dengan Satgas IHS di seluruh penjuru tanah air.
                 </p>
               </div>
             </div>
           </div>
-
-          {/* DAILY NEWS & SYNC REGISTRY SECTION */}
-          <div className="bg-[#0a0a0a] border border-slate-800 rounded-xl p-6 space-y-4 shadow-xl relative">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-850">
-              <div className="space-y-1">
-                <h3 className="text-lg font-extrabold text-white flex items-center gap-2 font-mono">
-                  <Newspaper className="w-5 h-5 text-red-500" />
-                  WARTA HARIAN & RILIS PERS PENTING
-                </h3>
-                <p className="text-xs text-slate-400">
-                  Rilisan berita penting hukum & keadilan nasional yang dipublikasikan secara langsung ke portal beranda IHS.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={handleManualSync}
-                disabled={isSyncing}
-                className={`px-4 py-2 bg-slate-900 border border-slate-800 hover:border-red-900/60 text-xs font-bold text-slate-200 hover:text-white rounded-lg flex items-center gap-2 transition shrink-0 cursor-pointer ${isSyncing ? "opacity-75" : ""}`}
-              >
-                <RefreshCw className={`w-3.5 h-3.5 text-red-500 ${isSyncing ? "animate-spin" : ""}`} />
-                {isSyncing ? "Memperbarui..." : "MUAT ULANG BERITA"}
-              </button>
-            </div>
-
-            {/* Sync Console Overlay */}
-            {isSyncing && (
-              <div className="bg-[#050505] border border-red-900/30 rounded-lg p-3 font-mono text-[10px] space-y-1 text-slate-300">
-                <div className="flex items-center justify-between text-red-500 font-bold border-b border-slate-850 pb-1 mb-1.5 uppercase">
-                  <span>Terminal Pembaharuan Warta IHS</span>
-                  <span className="flex h-1.5 w-1.5 rounded-full bg-red-500 animate-ping"></span>
-                </div>
-                {syncLogsConsole.map((log, i) => (
-                  <motion.div
-                    key={i}
-                    initial={{ opacity: 0, x: -5 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ duration: 0.2 }}
-                  >
-                    {log}
-                  </motion.div>
-                ))}
-              </div>
-            )}
-
-            {/* Sync Success Badge */}
-            {showSyncSuccess && (
-              <motion.div 
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="bg-green-950/20 border border-green-900/40 text-green-400 text-xs py-2 px-3 rounded-lg flex items-center gap-2"
-              >
-                <CheckCircle2 className="w-4 h-4 shrink-0 text-green-500" />
-                <span><strong>Pembaharuan Sukses!</strong> Warta berita harian berhasil diselaraskan dan diperbarui sepenuhnya di beranda.</span>
-              </motion.div>
-            )}
-
-            {/* News List */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
-              {news.length === 0 ? (
-                <div className="col-span-full py-12 text-center text-xs text-slate-500 font-mono">
-                  Menghubungkan ke server untuk memuat rilis berita harian...
-                </div>
-              ) : (
-                news.map((item) => (
-                  <div 
-                    key={item.id} 
-                    className="bg-[#050505] border border-slate-850 hover:border-slate-800 rounded-xl overflow-hidden flex flex-col justify-between transition-all group shadow-sm"
-                  >
-                    {item.imageUrl && (
-                      <div className="h-36 w-full overflow-hidden border-b border-slate-850 relative">
-                        <img 
-                          src={item.imageUrl} 
-                          alt={item.title} 
-                          className="w-full h-full object-cover group-hover:scale-105 transition duration-500"
-                        />
-                        <div className="absolute top-2.5 left-2.5 px-2 py-0.5 bg-red-950/90 border border-red-900 text-red-500 rounded text-[9px] font-bold font-mono uppercase tracking-wider">
-                          {item.category}
-                        </div>
-                      </div>
-                    )}
-                    <div className="p-4 flex-1 flex flex-col justify-between space-y-3">
-                      <div className="space-y-1.5">
-                        {!item.imageUrl && (
-                          <span className="inline-block px-2 py-0.5 bg-red-950/90 border border-red-900 text-red-500 rounded text-[9px] font-bold font-mono uppercase tracking-wider">
-                            {item.category}
-                          </span>
-                        )}
-                        <h4 className="text-sm font-bold text-white group-hover:text-red-500 transition leading-snug">
-                          {item.title}
-                        </h4>
-                        <p className="text-xs text-slate-400 line-clamp-2 leading-relaxed">
-                          {item.summary}
-                        </p>
-                      </div>
-
-                      <div className="pt-2 border-t border-slate-850 flex items-center justify-between text-[10px] font-mono text-slate-500">
-                        <span className="flex items-center gap-1">
-                          <Calendar className="w-3.5 h-3.5 text-red-500" />
-                          {new Date(item.date).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <User className="w-3.5 h-3.5 text-slate-400" />
-                          {item.author}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="px-4 pb-4">
-                      <button
-                        type="button"
-                        onClick={() => setSelectedArticle(item)}
-                        className="w-full py-1.5 bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-800 hover:border-slate-700 rounded-lg text-xs font-bold transition font-mono cursor-pointer"
-                      >
-                        BACA RILIS LENGKAP
-                      </button>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
+        </div>     </div>
         </div>
 
         {/* Right Column: Central Server Sync Status (www.ihsid.org) & Live Time */}
@@ -676,14 +728,121 @@ export default function HomeView({ onNavigate, cases, syncLogs, newsList }: Home
               {/* Action close button */}
               <div className="pt-4 border-t border-slate-850 flex items-center justify-between gap-4">
                 <span className="text-[10px] font-mono text-slate-500">PORTAL RESMI: WWW.IHSID.ORG</span>
-                <button
-                  type="button"
-                  onClick={() => setSelectedArticle(null)}
-                  className="px-5 py-2 bg-red-750 hover:bg-red-700 text-white rounded-lg font-mono font-bold text-xs transition cursor-pointer"
-                >
-                  TUTUP BACAAN
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setSharingArticle(selectedArticle)}
+                    className="px-4 py-2 bg-slate-900 hover:bg-slate-850 text-red-400 hover:text-white border border-slate-800 hover:border-slate-700 rounded-lg text-xs font-bold transition font-mono cursor-pointer flex items-center gap-1.5 uppercase"
+                  >
+                    <Share2 className="w-3.5 h-3.5 text-red-500" />
+                    BAGIKAN
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedArticle(null)}
+                    className="px-5 py-2 bg-red-750 hover:bg-red-700 text-white rounded-lg font-mono font-bold text-xs transition cursor-pointer"
+                  >
+                    TUTUP BACAAN
+                  </button>
+                </div>
               </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Share Article Modal */}
+      {sharingArticle && (
+        <div className="fixed inset-0 z-55 flex items-center justify-center p-4 bg-black/90 backdrop-blur-md">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-[#0c0c0c] border border-slate-800 rounded-2xl w-full max-w-md p-6 space-y-6 shadow-2xl relative text-left"
+          >
+            <button
+              type="button"
+              onClick={() => setSharingArticle(null)}
+              className="absolute top-4 right-4 bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white rounded-full p-2 border border-slate-800 cursor-pointer transition w-8 h-8 flex items-center justify-center"
+            >
+              <span className="font-bold text-xs">✕</span>
+            </button>
+
+            <div className="text-center space-y-2">
+              <div className="w-12 h-12 bg-red-950/40 border border-red-900/40 text-red-500 rounded-full flex items-center justify-center mx-auto">
+                <Share2 className="w-6 h-6" />
+              </div>
+              <h3 className="text-md font-bold text-white tracking-wide uppercase font-mono">Bagikan Warta Berita</h3>
+              <p className="text-xs text-slate-400 max-w-xs mx-auto line-clamp-1">
+                {sharingArticle.title}
+              </p>
+            </div>
+
+            <div className="space-y-4">
+              <div className="space-y-1">
+                <label className="text-[10px] text-slate-500 font-mono uppercase tracking-wider block">Salin Tautan Berita</label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    readOnly
+                    value={`https://www.ihsid.org/warta/${sharingArticle.id}`}
+                    className="flex-1 bg-[#050505] border border-slate-850 rounded-lg px-3 py-2 text-xs text-slate-300 font-mono outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleCopyLink(sharingArticle.id)}
+                    className="p-2.5 bg-red-750 hover:bg-red-700 text-white rounded-lg transition-colors cursor-pointer shrink-0"
+                    title="Salin Link"
+                  >
+                    {copied ? <Check className="w-4 h-4 text-green-300" /> : <Copy className="w-4 h-4" />}
+                  </button>
+                </div>
+                {copied && (
+                  <p className="text-[10px] text-green-400 font-mono text-right animate-pulse">Tautan disalin ke clipboard!</p>
+                )}
+              </div>
+
+              <div className="space-y-2 pt-2 border-t border-slate-800">
+                <span className="text-[10px] text-slate-500 font-mono uppercase tracking-wider block">Bagikan ke Platform</span>
+                <div className="grid grid-cols-2 gap-2">
+                  <a
+                    href={`https://api.whatsapp.com/send?text=${encodeURIComponent(sharingArticle.title + ' - Baca rilis resmi Satgas Intelijen Hukum Sipil (IHS): https://www.ihsid.org/warta/' + sharingArticle.id)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-3 py-2 bg-green-950/20 hover:bg-green-950/40 border border-green-900/30 hover:border-green-800 text-green-400 text-xs font-bold font-mono rounded-lg transition flex items-center justify-center gap-2"
+                  >
+                    <MessageCircle className="w-4 h-4" />
+                    WHATSAPP
+                  </a>
+                  <a
+                    href={`https://t.me/share/url?url=${encodeURIComponent('https://www.ihsid.org/warta/' + sharingArticle.id)}&text=${encodeURIComponent(sharingArticle.title)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-3 py-2 bg-blue-950/20 hover:bg-blue-950/40 border border-blue-900/30 hover:border-blue-800 text-blue-400 text-xs font-bold font-mono rounded-lg transition flex items-center justify-center gap-2"
+                  >
+                    <Send className="w-4 h-4" />
+                    TELEGRAM
+                  </a>
+                  <a
+                    href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent('https://www.ihsid.org/warta/' + sharingArticle.id)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-3 py-2 bg-indigo-950/20 hover:bg-indigo-950/40 border border-indigo-900/30 hover:border-indigo-800 text-indigo-400 text-xs font-bold font-mono rounded-lg transition flex items-center justify-center gap-2 col-span-2"
+                  >
+                    <Globe className="w-4 h-4 text-indigo-400" />
+                    FACEBOOK / SOSIAL MEDIA
+                  </a>
+                </div>
+              </div>
+            </div>
+
+            <div className="pt-2">
+              <button
+                type="button"
+                onClick={() => setSharingArticle(null)}
+                className="w-full py-2 bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white rounded-lg font-mono text-xs font-bold transition cursor-pointer text-center"
+              >
+                KEMBALI
+              </button>
             </div>
           </motion.div>
         </div>
