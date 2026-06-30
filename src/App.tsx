@@ -48,7 +48,10 @@ import {
   signOut,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
-  updateProfile
+  updateProfile,
+  updatePassword,
+  EmailAuthProvider,
+  reauthenticateWithCredential
 } from "firebase/auth";
 import { 
   collection, 
@@ -74,7 +77,15 @@ export default function App() {
   const [loginPassword, setLoginPassword] = useState("");
   const [loginError, setLoginError] = useState("");
   const [isLoggingIn, setIsLoggingIn] = useState(false);
-  const [showCredentialClue, setShowCredentialClue] = useState(false);
+
+  // Ganti Kata Sandi State
+  const [isChangePasswordModalOpen, setIsChangePasswordModalOpen] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmNewPassword, setConfirmNewPassword] = useState("");
+  const [changePasswordError, setChangePasswordError] = useState("");
+  const [changePasswordSuccess, setChangePasswordSuccess] = useState("");
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
 
   // Data State
   const [cases, setCases] = useState<CaseReport[]>([]);
@@ -276,14 +287,8 @@ export default function App() {
       return;
     }
 
-    if (loginPassword !== defaultPassword) {
-      setLoginError("Kata sandi salah. Silakan masukkan kata sandi yang sesuai untuk peran ini.");
-      setIsLoggingIn(false);
-      return;
-    }
-
     try {
-      // 1. Try signing in with Email & Password
+      // 1. Try signing in with Email & Password directly
       const userCredential = await signInWithEmailAndPassword(auth, email, loginPassword);
       
       // Update display name if empty or mismatched
@@ -298,11 +303,16 @@ export default function App() {
         setLoginError("METODE EMAIL/SANDI BELUM DIAKTIFKAN: Silakan buka Firebase Console Anda -> Project Shortcut -> Authentication -> Sign-in method, lalu AKTIFKAN 'Email/Password'. Tanpa ini, Firebase menolak pendaftaran akun komando.");
       } else if (
         err.code === "auth/user-not-found" || 
-        err.code === "auth/invalid-credential" || 
         err.code === "auth/cannot-find-user" || 
-        (err.message && err.message.includes("user-not-found")) || 
-        (err.message && err.message.includes("invalid-credential"))
+        (err.message && err.message.includes("user-not-found"))
       ) {
+        // If user not found, require default password for automatic creation
+        if (loginPassword !== defaultPassword) {
+          setLoginError("Akun belum terdaftar di server. Masukkan kata sandi bawaan pertama kali untuk mendaftarkan akun secara otomatis.");
+          setIsLoggingIn(false);
+          return;
+        }
+
         try {
           const userCredential = await createUserWithEmailAndPassword(auth, email, loginPassword);
           if (userCredential.user) {
@@ -318,12 +328,58 @@ export default function App() {
             setLoginError(`Sistem gagal mendaftarkan kredensial otomatis: ${createErr.message || createErr}`);
           }
         }
+      } else if (err.code === "auth/wrong-password" || err.code === "auth/invalid-credential" || (err.message && err.message.includes("invalid-credential"))) {
+        setLoginError("Kata sandi salah. Silakan masukkan kata sandi yang sesuai untuk peran ini.");
       } else {
         console.error("Gagal masuk dengan kredensial:", err);
         setLoginError(`Gagal masuk ke sistem: ${err.message || err}`);
       }
     } finally {
       setIsLoggingIn(false);
+    }
+  };
+
+  const handleChangePasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setChangePasswordError("");
+    setChangePasswordSuccess("");
+
+    if (!auth.currentUser || !auth.currentUser.email) {
+      setChangePasswordError("Anda harus masuk terlebih dahulu.");
+      return;
+    }
+
+    if (newPassword !== confirmNewPassword) {
+      setChangePasswordError("Konfirmasi kata sandi baru tidak cocok.");
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      setChangePasswordError("Kata sandi baru harus minimal 6 karakter.");
+      return;
+    }
+
+    setIsChangingPassword(true);
+
+    try {
+      const credential = EmailAuthProvider.credential(auth.currentUser.email, currentPassword);
+      await reauthenticateWithCredential(auth.currentUser, credential);
+      
+      await updatePassword(auth.currentUser, newPassword);
+      
+      setChangePasswordSuccess("Kata sandi berhasil diubah! Gunakan kata sandi baru ini pada saat masuk berikutnya.");
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmNewPassword("");
+    } catch (err: any) {
+      console.error("Gagal mengganti kata sandi:", err);
+      if (err.code === "auth/wrong-password" || err.code === "auth/invalid-credential" || (err.message && err.message.includes("invalid-credential"))) {
+        setChangePasswordError("Kata sandi saat ini salah.");
+      } else {
+        setChangePasswordError(`Gagal mengganti kata sandi: ${err.message || err}`);
+      }
+    } finally {
+      setIsChangingPassword(false);
     }
   };
 
@@ -579,35 +635,6 @@ export default function App() {
           </button>
         </form>
 
-        <div className="text-center pt-1 border-t border-slate-900/40">
-          <button
-            type="button"
-            onClick={() => setShowCredentialClue(!showCredentialClue)}
-            className="text-[10px] text-slate-500 hover:text-slate-300 font-mono underline cursor-pointer"
-          >
-            {showCredentialClue ? "Sembunyikan Petunjuk Sandi" : "Tampilkan Petunjuk Sandi"}
-          </button>
-        </div>
-
-        {showCredentialClue && (
-          <div className="p-3 bg-slate-950/40 border border-slate-850 rounded-lg space-y-1.5 text-[10px] text-slate-400 font-mono animate-fade-in">
-            <p className="font-bold text-red-500 uppercase tracking-widest text-center mb-1">INFORMASI AKSES SANDI DAFTAR</p>
-            <div className="flex justify-between border-b border-slate-900/60 pb-1">
-              <span>Admin:</span>
-              <span className="text-slate-200 font-bold">ihsadmin2026</span>
-            </div>
-            <div className="flex justify-between border-b border-slate-900/60 py-1">
-              <span>Anggota:</span>
-              <span className="text-slate-200 font-bold">ihsanggota2026</span>
-            </div>
-            <div className="flex justify-between pt-1">
-              <span>Pimpinan Pusat:</span>
-              <span className="text-slate-200 font-bold">ihspimpinan2026</span>
-            </div>
-          </div>
-        )}
-
-
       </div>
     );
   };
@@ -647,6 +674,19 @@ export default function App() {
                 <div className="h-8 w-8 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center font-bold text-xs text-slate-200">
                   {user.displayName ? user.displayName.substring(0, 2).toUpperCase() : "IHS"}
                 </div>
+              )}
+              {user.email && (user.email === "intelijenhukumsipil@gmail.com" || user.email === "anggota@ihsid.org" || user.email === "pimpinan@ihsid.org") && (
+                <button
+                  onClick={() => {
+                    setChangePasswordError("");
+                    setChangePasswordSuccess("");
+                    setIsChangePasswordModalOpen(true);
+                  }}
+                  className="text-[10px] text-slate-300 hover:text-white font-bold tracking-wider font-mono uppercase bg-slate-900 border border-slate-800 rounded px-2.5 py-1.5 cursor-pointer transition flex items-center gap-1 hover:border-slate-700"
+                >
+                  <Lock className="w-3 h-3 text-red-500" />
+                  GANTI SANDI
+                </button>
               )}
               <button
                 onClick={handleLogout}
@@ -753,26 +793,42 @@ export default function App() {
               {isAuthLoading ? (
                 <div className="text-xs text-slate-500 font-mono">Memuat otentikasi...</div>
               ) : user ? (
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    {user.photoURL ? (
-                      <img src={user.photoURL} alt="Avatar" className="h-9 w-9 rounded-full border border-slate-700" referrerPolicy="no-referrer" />
-                    ) : (
-                      <div className="h-9 w-9 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center font-bold text-xs text-slate-200">
-                        {user.displayName ? user.displayName.substring(0, 2).toUpperCase() : "IHS"}
+                <div className="flex flex-col gap-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      {user.photoURL ? (
+                        <img src={user.photoURL} alt="Avatar" className="h-9 w-9 rounded-full border border-slate-700" referrerPolicy="no-referrer" />
+                      ) : (
+                        <div className="h-9 w-9 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center font-bold text-xs text-slate-200">
+                          {user.displayName ? user.displayName.substring(0, 2).toUpperCase() : "IHS"}
+                        </div>
+                      )}
+                      <div className="leading-tight">
+                        <p className="text-xs font-bold text-white uppercase">{user.displayName || "Operator"}</p>
+                        <p className="text-[10px] text-slate-400 font-mono truncate max-w-[165px]">{user.email}</p>
                       </div>
-                    )}
-                    <div className="leading-tight">
-                      <p className="text-xs font-bold text-white uppercase">{user.displayName || "Operator"}</p>
-                      <p className="text-[10px] text-slate-400 font-mono truncate max-w-[165px]">{user.email}</p>
                     </div>
+                    <button
+                      onClick={() => { handleLogout(); setIsMobileMenuOpen(false); }}
+                      className="px-2.5 py-1.5 bg-slate-900 border border-slate-800 text-[10px] text-red-500 font-bold font-mono rounded uppercase cursor-pointer hover:bg-slate-800"
+                    >
+                      KELUAR
+                    </button>
                   </div>
-                  <button
-                    onClick={() => { handleLogout(); setIsMobileMenuOpen(false); }}
-                    className="px-2.5 py-1.5 bg-slate-900 border border-slate-800 text-[10px] text-red-500 font-bold font-mono rounded uppercase cursor-pointer hover:bg-slate-800"
-                  >
-                    KELUAR
-                  </button>
+                  {user.email && (user.email === "intelijenhukumsipil@gmail.com" || user.email === "anggota@ihsid.org" || user.email === "pimpinan@ihsid.org") && (
+                    <button
+                      onClick={() => {
+                        setChangePasswordError("");
+                        setChangePasswordSuccess("");
+                        setIsChangePasswordModalOpen(true);
+                        setIsMobileMenuOpen(false);
+                      }}
+                      className="w-full py-2 bg-slate-900 border border-slate-800 hover:bg-slate-800 text-slate-300 font-mono font-bold text-xs rounded tracking-wider transition cursor-pointer flex items-center justify-center gap-1.5 uppercase"
+                    >
+                      <Lock className="w-3.5 h-3.5 text-red-500" />
+                      Ganti Kata Sandi Sistem
+                    </button>
+                  )}
                 </div>
               ) : (
                 <button
@@ -1002,35 +1058,95 @@ export default function App() {
               </button>
             </form>
 
-            <div className="text-center pt-1 border-t border-slate-900/40">
-              <button
-                type="button"
-                onClick={() => setShowCredentialClue(!showCredentialClue)}
-                className="text-[10px] text-slate-500 hover:text-slate-300 font-mono underline cursor-pointer"
-              >
-                {showCredentialClue ? "Sembunyikan Petunjuk Sandi" : "Tampilkan Petunjuk Sandi"}
-              </button>
+          </div>
+        </div>
+      )}
+
+      {/* Change Password Modal */}
+      {isChangePasswordModalOpen && (
+        <div className="fixed inset-0 bg-[#050505]/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
+          <div className="bg-[#0a0a0a] border border-slate-800 rounded-2xl p-6 sm:p-8 max-w-md w-full space-y-6 shadow-2xl relative">
+            <button 
+              onClick={() => setIsChangePasswordModalOpen(false)}
+              className="absolute top-4 right-4 p-1.5 bg-slate-900 border border-slate-800 rounded-lg text-slate-400 hover:text-white cursor-pointer hover:bg-slate-800"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            <div className="text-center space-y-3">
+              <div className="w-12 h-12 bg-red-950/40 border border-red-900/40 text-red-500 rounded-full flex items-center justify-center mx-auto">
+                <Lock className="w-6 h-6 animate-pulse" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-md font-bold text-white tracking-wide uppercase">Ganti Kata Sandi Sistem</h3>
+                <p className="text-xs text-slate-400">
+                  Ubah kata sandi akun sistem komando aktif Anda ({user?.email}).
+                </p>
+              </div>
             </div>
 
-            {showCredentialClue && (
-              <div className="p-3 bg-slate-950/40 border border-slate-850 rounded-lg space-y-1.5 text-[10px] text-slate-400 font-mono animate-fade-in text-left">
-                <p className="font-bold text-red-500 uppercase tracking-widest text-center mb-1">INFORMASI AKSES SANDI DAFTAR</p>
-                <div className="flex justify-between border-b border-slate-900/60 pb-1">
-                  <span>Admin:</span>
-                  <span className="text-slate-200 font-bold">ihsadmin2026</span>
+            <form onSubmit={handleChangePasswordSubmit} className="space-y-4 text-left">
+              {changePasswordError && (
+                <div className="p-3 bg-red-950/40 border border-red-900 text-red-400 text-xs rounded-lg font-mono">
+                  {changePasswordError}
                 </div>
-                <div className="flex justify-between border-b border-slate-900/60 py-1">
-                  <span>Anggota:</span>
-                  <span className="text-slate-200 font-bold">ihsanggota2026</span>
+              )}
+
+              {changePasswordSuccess && (
+                <div className="p-3 bg-green-950/40 border border-green-900 text-green-400 text-xs rounded-lg font-mono">
+                  {changePasswordSuccess}
                 </div>
-                <div className="flex justify-between pt-1">
-                  <span>Pimpinan Pusat:</span>
-                  <span className="text-slate-200 font-bold">ihspimpinan2026</span>
-                </div>
+              )}
+
+              <div className="space-y-1">
+                <label className="text-xs text-slate-400 font-bold font-mono block uppercase">KATA SANDI SAAT INI</label>
+                <input
+                  type="password"
+                  placeholder="Masukkan sandi aktif..."
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  className="w-full bg-[#050505] border border-slate-850 rounded-lg px-3 py-2.5 text-xs text-slate-200 outline-none focus:border-red-650 font-mono"
+                  required
+                />
               </div>
-            )}
 
+              <div className="space-y-1">
+                <label className="text-xs text-slate-400 font-bold font-mono block uppercase">KATA SANDI BARU</label>
+                <input
+                  type="password"
+                  placeholder="Minimal 6 karakter..."
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  className="w-full bg-[#050505] border border-slate-850 rounded-lg px-3 py-2.5 text-xs text-slate-200 outline-none focus:border-red-650 font-mono"
+                  required
+                />
+              </div>
 
+              <div className="space-y-1">
+                <label className="text-xs text-slate-400 font-bold font-mono block uppercase">KONFIRMASI KATA SANDI BARU</label>
+                <input
+                  type="password"
+                  placeholder="Ulangi sandi baru..."
+                  value={confirmNewPassword}
+                  onChange={(e) => setConfirmNewPassword(e.target.value)}
+                  className="w-full bg-[#050505] border border-slate-850 rounded-lg px-3 py-2.5 text-xs text-slate-200 outline-none focus:border-red-650 font-mono"
+                  required
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={isChangingPassword}
+                className="w-full py-3 bg-red-700 hover:bg-red-600 active:bg-red-800 text-white font-mono font-bold text-xs rounded-lg tracking-widest transition cursor-pointer flex items-center justify-center gap-2 uppercase disabled:opacity-50"
+              >
+                {isChangingPassword ? (
+                  <span className="w-4 h-4 border-2 border-t-white border-slate-800 animate-spin rounded-full"></span>
+                ) : (
+                  <ShieldCheck className="w-4 h-4" />
+                )}
+                PERBARUI SEKARANG
+              </button>
+            </form>
           </div>
         </div>
       )}
