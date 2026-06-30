@@ -16,7 +16,9 @@ import {
   Lock, 
   ShieldCheck, 
   ExternalLink,
-  PhoneCall
+  PhoneCall,
+  Layers,
+  Cpu
 } from "lucide-react";
 
 import { CaseReport, LegalTemplate, NewsItem, Member } from "./types";
@@ -29,6 +31,8 @@ import ConsultationView from "./components/ConsultationView";
 import MediaEdukasiView from "./components/MediaEdukasiView";
 import JaringanAnggotaView from "./components/JaringanAnggotaView";
 import SettingsSyncView from "./components/SettingsSyncView";
+import EkosistemOtonomView from "./components/EkosistemOtonomView";
+import DhnOneSystemView from "./components/DhnOneSystemView";
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<string>("home");
@@ -204,6 +208,8 @@ export default function App() {
     { id: "konsultasi", label: "Konsultasi AI", icon: MessageSquare },
     { id: "media", label: "Media & Edukasi", icon: Newspaper },
     { id: "jaringan", label: "Jaringan & Anggota", icon: Network },
+    { id: "ekosistem_otonom", label: "Ekosistem Otonom", icon: Layers },
+    { id: "dhn_one_system", label: "DHN One System", icon: Cpu },
     { id: "pengaturan", label: "Pengaturan & Log", icon: Settings },
   ];
 
@@ -415,6 +421,14 @@ export default function App() {
               members={members} 
               onRegisterMember={handleRegisterMember}
             />
+          )}
+
+          {activeTab === "ekosistem_otonom" && (
+            <EkosistemOtonomView />
+          )}
+
+          {activeTab === "dhn_one_system" && (
+            <DhnOneSystemView />
           )}
 
           {activeTab === "pengaturan" && (
