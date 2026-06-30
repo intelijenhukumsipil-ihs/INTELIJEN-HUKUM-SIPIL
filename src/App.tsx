@@ -45,7 +45,10 @@ import {
 import { 
   User, 
   signInWithPopup, 
-  signOut 
+  signOut,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  updateProfile
 } from "firebase/auth";
 import { 
   collection, 
@@ -64,6 +67,14 @@ export default function App() {
   // Auth State
   const [user, setUser] = useState<User | null>(null);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
+
+  // Custom Password Login Form State
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const [loginRole, setLoginRole] = useState<"admin" | "anggota" | "pimpinan">("admin");
+  const [loginPassword, setLoginPassword] = useState("");
+  const [loginError, setLoginError] = useState("");
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [showCredentialClue, setShowCredentialClue] = useState(false);
 
   // Data State
   const [cases, setCases] = useState<CaseReport[]>([]);
@@ -187,7 +198,7 @@ export default function App() {
     });
 
     // 4. Subscribe to Cases (Auth required)
-    const isUserAdmin = user.email === "intelijenhukumsipil@gmail.com";
+    const isUserAdmin = user.email === "intelijenhukumsipil@gmail.com" || user.email === "pimpinan@ihsid.org";
     const casesQuery = isUserAdmin 
       ? collection(db, "cases")
       : query(collection(db, "cases"), where("userId", "==", user.uid));
@@ -232,11 +243,87 @@ export default function App() {
   }, [user, isAuthLoading]);
 
   // Auth Actions
-  const handleLogin = async () => {
+  const handleLogin = () => {
+    setLoginError("");
+    setLoginPassword("");
+    setIsLoginModalOpen(true);
+  };
+
+  const handlePasswordLoginSubmit = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    setLoginError("");
+    setIsLoggingIn(true);
+
+    let email = "";
+    let defaultPassword = "";
+    let displayName = "";
+
+    if (loginRole === "admin") {
+      email = "intelijenhukumsipil@gmail.com";
+      defaultPassword = "ihsadmin2026";
+      displayName = "Pengelola Pusat (Admin)";
+    } else if (loginRole === "anggota") {
+      email = "anggota@ihsid.org";
+      defaultPassword = "ihsanggota2026";
+      displayName = "Anggota Lapangan";
+    } else if (loginRole === "pimpinan") {
+      email = "pimpinan@ihsid.org";
+      defaultPassword = "ihspimpinan2026";
+      displayName = "Pimpinan Pusat (Pemantau)";
+    } else {
+      setLoginError("Peran tidak valid.");
+      setIsLoggingIn(false);
+      return;
+    }
+
+    if (loginPassword !== defaultPassword) {
+      setLoginError("Kata sandi salah. Silakan masukkan kata sandi yang sesuai untuk peran ini.");
+      setIsLoggingIn(false);
+      return;
+    }
+
     try {
-      await signInWithPopup(auth, googleProvider);
-    } catch (err) {
-      console.error("Gagal masuk dengan Google:", err);
+      // 1. Try signing in with Email & Password
+      const userCredential = await signInWithEmailAndPassword(auth, email, loginPassword);
+      
+      // Update display name if empty or mismatched
+      if (userCredential.user && (!userCredential.user.displayName || userCredential.user.displayName !== displayName)) {
+        await updateProfile(userCredential.user, { displayName });
+      }
+
+      setIsLoginModalOpen(false);
+      setLoginPassword("");
+    } catch (err: any) {
+      if (err.code === "auth/operation-not-allowed") {
+        setLoginError("METODE EMAIL/SANDI BELUM DIAKTIFKAN: Silakan buka Firebase Console Anda -> Project Shortcut -> Authentication -> Sign-in method, lalu AKTIFKAN 'Email/Password'. Tanpa ini, Firebase menolak pendaftaran akun komando.");
+      } else if (
+        err.code === "auth/user-not-found" || 
+        err.code === "auth/invalid-credential" || 
+        err.code === "auth/cannot-find-user" || 
+        (err.message && err.message.includes("user-not-found")) || 
+        (err.message && err.message.includes("invalid-credential"))
+      ) {
+        try {
+          const userCredential = await createUserWithEmailAndPassword(auth, email, loginPassword);
+          if (userCredential.user) {
+            await updateProfile(userCredential.user, { displayName });
+          }
+          setIsLoginModalOpen(false);
+          setLoginPassword("");
+        } catch (createErr: any) {
+          console.error("Gagal membuat akun sistem otomatis:", createErr);
+          if (createErr.code === "auth/operation-not-allowed") {
+            setLoginError("METODE EMAIL/SANDI BELUM DIAKTIFKAN: Silakan buka Firebase Console Anda -> Project Shortcut -> Authentication -> Sign-in method, lalu AKTIFKAN 'Email/Password' agar akun sandi dapat dibuat otomatis.");
+          } else {
+            setLoginError(`Sistem gagal mendaftarkan kredensial otomatis: ${createErr.message || createErr}`);
+          }
+        }
+      } else {
+        console.error("Gagal masuk dengan kredensial:", err);
+        setLoginError(`Gagal masuk ke sistem: ${err.message || err}`);
+      }
+    } finally {
+      setIsLoggingIn(false);
     }
   };
 
@@ -426,26 +513,104 @@ export default function App() {
   ];
 
 
-  const renderAuthPrompt = (tabLabel: string) => (
-    <div className="max-w-md mx-auto my-12 bg-[#0a0a0a] border border-slate-800 rounded-2xl p-8 text-center space-y-6 shadow-2xl">
-      <div className="w-16 h-16 bg-red-950/40 border border-red-900/40 text-red-500 rounded-full flex items-center justify-center mx-auto">
-        <Lock className="w-8 h-8" />
+  const renderAuthPrompt = (tabLabel: string) => {
+    const handleInlineSubmit = async (e: React.FormEvent) => {
+      e.preventDefault();
+      await handlePasswordLoginSubmit();
+    };
+
+    return (
+      <div className="max-w-md mx-auto my-12 bg-[#0a0a0a] border border-slate-800 rounded-2xl p-8 space-y-6 shadow-2xl text-left">
+        <div className="text-center space-y-4">
+          <div className="w-14 h-14 bg-red-950/40 border border-red-900/40 text-red-500 rounded-full flex items-center justify-center mx-auto">
+            <Lock className="w-7 h-7 animate-pulse" />
+          </div>
+          <div className="space-y-1">
+            <h3 className="text-md font-bold text-white tracking-wide uppercase">Akses Terenkripsi Diperlukan</h3>
+            <p className="text-xs text-slate-400 leading-relaxed">
+              Halaman <span className="text-red-500 font-bold font-mono">{tabLabel}</span> dilindungi sandi sistem komando IHS.
+            </p>
+          </div>
+        </div>
+
+        <form onSubmit={handleInlineSubmit} className="space-y-4">
+          {loginError && (
+            <div className="p-3 bg-red-950/40 border border-red-900 text-red-400 text-xs rounded-lg font-mono">
+              {loginError}
+            </div>
+          )}
+
+          <div className="space-y-1">
+            <label className="text-xs text-slate-400 font-bold font-mono block uppercase">PILIH PERAN / AKUN</label>
+            <select
+              value={loginRole}
+              onChange={(e) => setLoginRole(e.target.value as any)}
+              className="w-full bg-[#050505] border border-slate-850 rounded-lg px-3 py-2 text-xs text-slate-200 outline-none cursor-pointer focus:border-red-650"
+            >
+              <option value="admin">Operator Pusat (Admin)</option>
+              <option value="anggota">Anggota Lapangan (Advokat/Aktivis)</option>
+              <option value="pimpinan">Pimpinan Pusat (Pemantau)</option>
+            </select>
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-xs text-slate-400 font-bold font-mono block uppercase">KATA SANDI SISTEM</label>
+            <input
+              type="password"
+              placeholder="Masukkan sandi..."
+              value={loginPassword}
+              onChange={(e) => setLoginPassword(e.target.value)}
+              className="w-full bg-[#050505] border border-slate-850 rounded-lg px-3 py-2 text-xs text-slate-200 outline-none focus:border-red-650 font-mono"
+              required
+            />
+          </div>
+
+          <button
+            type="submit"
+            disabled={isLoggingIn}
+            className="w-full py-2.5 bg-red-700 hover:bg-red-600 active:bg-red-800 text-white font-mono font-bold text-xs rounded-lg tracking-widest transition cursor-pointer flex items-center justify-center gap-2 uppercase disabled:opacity-50"
+          >
+            {isLoggingIn ? (
+              <span className="w-4 h-4 border-2 border-t-white border-slate-800 animate-spin rounded-full"></span>
+            ) : (
+              <ShieldCheck className="w-4 h-4" />
+            )}
+            MASUK SEKARANG
+          </button>
+        </form>
+
+        <div className="text-center pt-1 border-t border-slate-900/40">
+          <button
+            type="button"
+            onClick={() => setShowCredentialClue(!showCredentialClue)}
+            className="text-[10px] text-slate-500 hover:text-slate-300 font-mono underline cursor-pointer"
+          >
+            {showCredentialClue ? "Sembunyikan Petunjuk Sandi" : "Tampilkan Petunjuk Sandi"}
+          </button>
+        </div>
+
+        {showCredentialClue && (
+          <div className="p-3 bg-slate-950/40 border border-slate-850 rounded-lg space-y-1.5 text-[10px] text-slate-400 font-mono animate-fade-in">
+            <p className="font-bold text-red-500 uppercase tracking-widest text-center mb-1">INFORMASI AKSES SANDI DAFTAR</p>
+            <div className="flex justify-between border-b border-slate-900/60 pb-1">
+              <span>Admin:</span>
+              <span className="text-slate-200 font-bold">ihsadmin2026</span>
+            </div>
+            <div className="flex justify-between border-b border-slate-900/60 py-1">
+              <span>Anggota:</span>
+              <span className="text-slate-200 font-bold">ihsanggota2026</span>
+            </div>
+            <div className="flex justify-between pt-1">
+              <span>Pimpinan Pusat:</span>
+              <span className="text-slate-200 font-bold">ihspimpinan2026</span>
+            </div>
+          </div>
+        )}
+
+
       </div>
-      <div className="space-y-2">
-        <h3 className="text-lg font-bold text-white tracking-wide uppercase">Akses Terenkripsi Diperlukan</h3>
-        <p className="text-xs text-slate-400 leading-relaxed">
-          Untuk mengakses halaman <span className="text-red-500 font-bold font-mono">{tabLabel}</span>, Anda harus masuk ke sistem komando IHS menggunakan akun Google terverifikasi.
-        </p>
-      </div>
-      <button
-        onClick={handleLogin}
-        className="w-full py-3 bg-red-700 hover:bg-red-600 active:bg-red-800 text-white font-mono font-bold text-xs rounded-xl tracking-widest transition cursor-pointer flex items-center justify-center gap-2 uppercase shadow-lg shadow-red-950/40"
-      >
-        <ShieldCheck className="w-4 h-4" />
-        Masuk Dengan Akun Google
-      </button>
-    </div>
-  );
+    );
+  };
 
   return (
     <div className="min-h-screen text-slate-100 flex flex-col font-sans" style={{ backgroundColor: "#050505" }}>
@@ -615,7 +780,7 @@ export default function App() {
                   className="w-full py-2.5 bg-red-700 hover:bg-red-600 text-white text-xs font-bold font-mono tracking-wider rounded uppercase cursor-pointer flex items-center justify-center gap-2"
                 >
                   <ShieldCheck className="w-4 h-4" />
-                  MASUK DENGAN GOOGLE
+                  MASUK DENGAN SANDI
                 </button>
               )}
             </div>
@@ -767,6 +932,108 @@ export default function App() {
           <span className="hidden md:inline">AES-256</span>
         </span>
       </footer>
+
+      {/* Custom Password Login Modal */}
+      {isLoginModalOpen && (
+        <div className="fixed inset-0 bg-[#050505]/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
+          <div className="bg-[#0a0a0a] border border-slate-800 rounded-2xl p-6 sm:p-8 max-w-md w-full space-y-6 shadow-2xl relative">
+            <button 
+              onClick={() => setIsLoginModalOpen(false)}
+              className="absolute top-4 right-4 p-1.5 bg-slate-900 border border-slate-800 rounded-lg text-slate-400 hover:text-white cursor-pointer hover:bg-slate-800"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            <div className="text-center space-y-3">
+              <div className="w-12 h-12 bg-red-950/40 border border-red-900/40 text-red-500 rounded-full flex items-center justify-center mx-auto">
+                <Lock className="w-6 h-6 animate-pulse" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-md font-bold text-white tracking-wide uppercase">Masuk Akun Komando IHS</h3>
+                <p className="text-xs text-slate-400">
+                  Gunakan kredensial sandi terenkripsi sistem untuk mengakses server.
+                </p>
+              </div>
+            </div>
+
+            <form onSubmit={handlePasswordLoginSubmit} className="space-y-4 text-left">
+              {loginError && (
+                <div className="p-3 bg-red-950/40 border border-red-900 text-red-400 text-xs rounded-lg font-mono">
+                  {loginError}
+                </div>
+              )}
+
+              <div className="space-y-1">
+                <label className="text-xs text-slate-400 font-bold font-mono block uppercase">PILIH PERAN / AKUN</label>
+                <select
+                  value={loginRole}
+                  onChange={(e) => setLoginRole(e.target.value as any)}
+                  className="w-full bg-[#050505] border border-slate-850 rounded-lg px-3 py-2.5 text-xs text-slate-200 outline-none cursor-pointer focus:border-red-650"
+                >
+                  <option value="admin">Operator Pusat (Admin)</option>
+                  <option value="anggota">Anggota Lapangan (Advokat/Aktivis)</option>
+                  <option value="pimpinan">Pimpinan Pusat (Pemantau)</option>
+                </select>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs text-slate-400 font-bold font-mono block uppercase">KATA SANDI SISTEM</label>
+                <input
+                  type="password"
+                  placeholder="Masukkan sandi..."
+                  value={loginPassword}
+                  onChange={(e) => setLoginPassword(e.target.value)}
+                  className="w-full bg-[#050505] border border-slate-850 rounded-lg px-3 py-2.5 text-xs text-slate-200 outline-none focus:border-red-650 font-mono"
+                  required
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={isLoggingIn}
+                className="w-full py-3 bg-red-700 hover:bg-red-600 active:bg-red-800 text-white font-mono font-bold text-xs rounded-lg tracking-widest transition cursor-pointer flex items-center justify-center gap-2 uppercase disabled:opacity-50"
+              >
+                {isLoggingIn ? (
+                  <span className="w-4 h-4 border-2 border-t-white border-slate-800 animate-spin rounded-full"></span>
+                ) : (
+                  <ShieldCheck className="w-4 h-4" />
+                )}
+                MASUK SEKARANG
+              </button>
+            </form>
+
+            <div className="text-center pt-1 border-t border-slate-900/40">
+              <button
+                type="button"
+                onClick={() => setShowCredentialClue(!showCredentialClue)}
+                className="text-[10px] text-slate-500 hover:text-slate-300 font-mono underline cursor-pointer"
+              >
+                {showCredentialClue ? "Sembunyikan Petunjuk Sandi" : "Tampilkan Petunjuk Sandi"}
+              </button>
+            </div>
+
+            {showCredentialClue && (
+              <div className="p-3 bg-slate-950/40 border border-slate-850 rounded-lg space-y-1.5 text-[10px] text-slate-400 font-mono animate-fade-in text-left">
+                <p className="font-bold text-red-500 uppercase tracking-widest text-center mb-1">INFORMASI AKSES SANDI DAFTAR</p>
+                <div className="flex justify-between border-b border-slate-900/60 pb-1">
+                  <span>Admin:</span>
+                  <span className="text-slate-200 font-bold">ihsadmin2026</span>
+                </div>
+                <div className="flex justify-between border-b border-slate-900/60 py-1">
+                  <span>Anggota:</span>
+                  <span className="text-slate-200 font-bold">ihsanggota2026</span>
+                </div>
+                <div className="flex justify-between pt-1">
+                  <span>Pimpinan Pusat:</span>
+                  <span className="text-slate-200 font-bold">ihspimpinan2026</span>
+                </div>
+              </div>
+            )}
+
+
+          </div>
+        </div>
+      )}
 
     </div>
   );

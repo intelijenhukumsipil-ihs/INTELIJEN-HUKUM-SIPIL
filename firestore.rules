@@ -13,7 +13,12 @@ service cloud.firestore {
     }
 
     function isVerifiedUser() {
-      return isSignedIn() && request.auth.token.email_verified == true;
+      return isSignedIn() && (
+        request.auth.token.email_verified == true || 
+        request.auth.token.email == 'intelijenhukumsipil@gmail.com' ||
+        request.auth.token.email == 'anggota@ihsid.org' ||
+        request.auth.token.email == 'pimpinan@ihsid.org'
+      );
     }
 
     function isValidId(id) {
@@ -31,7 +36,8 @@ service cloud.firestore {
     function isAdmin() {
       return isSignedIn() && (
         exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
-        request.auth.token.email == 'intelijenhukumsipil@gmail.com'
+        request.auth.token.email == 'intelijenhukumsipil@gmail.com' ||
+        request.auth.token.email == 'pimpinan@ihsid.org'
       );
     }
 
