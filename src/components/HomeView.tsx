@@ -59,8 +59,28 @@ export default function HomeView({ onNavigate, cases, syncLogs, newsList }: Home
   const [sharingArticle, setSharingArticle] = useState<any | null>(null);
   const [copied, setCopied] = useState(false);
 
+  // Parse URL search parameters to check if user opened a shared article link
+  useEffect(() => {
+    if (newsList && newsList.length > 0) {
+      const params = new URLSearchParams(window.location.search);
+      const wartaId = params.get("warta");
+      if (wartaId) {
+        const found = newsList.find(item => item.id === wartaId);
+        if (found) {
+          setSelectedArticle(found);
+        }
+      }
+    }
+  }, [newsList]);
+
+  const getShareUrl = (id: string) => {
+    const origin = window.location.origin;
+    const pathname = window.location.pathname;
+    return `${origin}${pathname}?warta=${id}`;
+  };
+
   const handleCopyLink = (id: string) => {
-    const shareUrl = `https://www.ihsid.org/warta/${id}`;
+    const shareUrl = getShareUrl(id);
     navigator.clipboard.writeText(shareUrl);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -391,7 +411,10 @@ export default function HomeView({ onNavigate, cases, syncLogs, newsList }: Home
           <p className="text-xs text-slate-400 mt-2 flex items-center gap-1">
             <span className="text-green-500 font-bold">&#8226;</span> Hak sipil warga terpenuhi
           </p>
-             {/* Main Grid Content */}
+        </div>
+      </div>
+
+      {/* Main Grid Content */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Column: Quick Action Cards */}
         <div className="lg:col-span-2 space-y-6">
@@ -541,7 +564,6 @@ export default function HomeView({ onNavigate, cases, syncLogs, newsList }: Home
               </div>
             </div>
           </div>
-        </div>     </div>
         </div>
 
         {/* Right Column: Central Server Sync Status (www.ihsid.org) & Live Time */}
@@ -784,7 +806,7 @@ export default function HomeView({ onNavigate, cases, syncLogs, newsList }: Home
                   <input
                     type="text"
                     readOnly
-                    value={`https://www.ihsid.org/warta/${sharingArticle.id}`}
+                    value={getShareUrl(sharingArticle.id)}
                     className="flex-1 bg-[#050505] border border-slate-850 rounded-lg px-3 py-2 text-xs text-slate-300 font-mono outline-none"
                   />
                   <button
@@ -805,7 +827,7 @@ export default function HomeView({ onNavigate, cases, syncLogs, newsList }: Home
                 <span className="text-[10px] text-slate-500 font-mono uppercase tracking-wider block">Bagikan ke Platform</span>
                 <div className="grid grid-cols-2 gap-2">
                   <a
-                    href={`https://api.whatsapp.com/send?text=${encodeURIComponent(sharingArticle.title + ' - Baca rilis resmi Satgas Intelijen Hukum Sipil (IHS): https://www.ihsid.org/warta/' + sharingArticle.id)}`}
+                    href={`https://api.whatsapp.com/send?text=${encodeURIComponent(sharingArticle.title + ' - Baca rilis resmi Satgas Intelijen Hukum Sipil (IHS): ' + getShareUrl(sharingArticle.id))}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="px-3 py-2 bg-green-950/20 hover:bg-green-950/40 border border-green-900/30 hover:border-green-800 text-green-400 text-xs font-bold font-mono rounded-lg transition flex items-center justify-center gap-2"
@@ -814,7 +836,7 @@ export default function HomeView({ onNavigate, cases, syncLogs, newsList }: Home
                     WHATSAPP
                   </a>
                   <a
-                    href={`https://t.me/share/url?url=${encodeURIComponent('https://www.ihsid.org/warta/' + sharingArticle.id)}&text=${encodeURIComponent(sharingArticle.title)}`}
+                    href={`https://t.me/share/url?url=${encodeURIComponent(getShareUrl(sharingArticle.id))}&text=${encodeURIComponent(sharingArticle.title)}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="px-3 py-2 bg-blue-950/20 hover:bg-blue-950/40 border border-blue-900/30 hover:border-blue-800 text-blue-400 text-xs font-bold font-mono rounded-lg transition flex items-center justify-center gap-2"
@@ -823,7 +845,7 @@ export default function HomeView({ onNavigate, cases, syncLogs, newsList }: Home
                     TELEGRAM
                   </a>
                   <a
-                    href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent('https://www.ihsid.org/warta/' + sharingArticle.id)}`}
+                    href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(getShareUrl(sharingArticle.id))}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="px-3 py-2 bg-indigo-950/20 hover:bg-indigo-950/40 border border-indigo-900/30 hover:border-indigo-800 text-indigo-400 text-xs font-bold font-mono rounded-lg transition flex items-center justify-center gap-2 col-span-2"
