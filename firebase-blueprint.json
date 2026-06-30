@@ -1,0 +1,93 @@
+{
+  "entities": {
+    "CaseReport": {
+      "title": "CaseReport",
+      "description": "Laporan kasus hukum perdata atau sipil yang masuk ke Intelijen Hukum Sipil",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "ticketNumber": { "type": "string" },
+        "title": { "type": "string" },
+        "category": { "type": "string", "enum": ["Tanah/Properti", "HAM/Kekerasan", "Ketenagakerjaan", "Agraria/Lingkungan", "Korupsi/Wewenang", "Digital/Pendapat", "Perdata Lainnya"] },
+        "reporterName": { "type": "string" },
+        "reporterContact": { "type": "string" },
+        "isAnonymous": { "type": "boolean" },
+        "location": { "type": "string" },
+        "chronology": { "type": "string" },
+        "dateSubmitted": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["diterima", "verifikasi", "penanganan", "selesai", "ditutup"] },
+        "evidenceCount": { "type": "number" },
+        "evidenceFiles": {
+          "type": "array"
+        },
+        "aiAnalysis": {
+          "type": "object"
+        },
+        "userId": { "type": "string", "description": "The UID of the user who submitted the report" }
+      },
+      "required": ["id", "ticketNumber", "title", "category", "reporterName", "reporterContact", "isAnonymous", "location", "chronology", "dateSubmitted", "status"]
+    },
+    "NewsItem": {
+      "title": "NewsItem",
+      "description": "Rilis pers, edukasi hukum, atau kabar kasus yang dipublikasikan",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "summary": { "type": "string" },
+        "content": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "author": { "type": "string" },
+        "category": { "type": "string", "enum": ["Rilis Pers", "Edukasi", "Kabar Kasus"] },
+        "imageUrl": { "type": "string" }
+      },
+      "required": ["id", "title", "summary", "content", "date", "author", "category"]
+    },
+    "Member": {
+      "title": "Member",
+      "description": "Anggota pembela hukum, aktivis LSM, jurnalis, atau relawan lapangan yang terdaftar",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "role": { "type": "string", "enum": ["Advokat", "Aktivis LSM", "Jurnalis", "Relawan Lapangan"] },
+        "organization": { "type": "string" },
+        "location": { "type": "string" },
+        "isVerified": { "type": "boolean" },
+        "userId": { "type": "string" }
+      },
+      "required": ["id", "name", "role", "organization", "location", "isVerified"]
+    },
+    "SyncLog": {
+      "title": "SyncLog",
+      "description": "Log sinkronisasi transaksi data dengan pusat data nasional",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "action": { "type": "string" },
+        "detail": { "type": "string" },
+        "status": { "type": "string" }
+      },
+      "required": ["id", "timestamp", "action", "detail", "status"]
+    }
+  },
+  "firestore": {
+    "cases": {
+      "schema": { "$ref": "#/entities/CaseReport" },
+      "description": "Koleksi seluruh laporan kasus hukum masuk"
+    },
+    "publications": {
+      "schema": { "$ref": "#/entities/NewsItem" },
+      "description": "Koleksi rilis pers dan artikel media edukasi"
+    },
+    "members": {
+      "schema": { "$ref": "#/entities/Member" },
+      "description": "Koleksi data anggota terdaftar"
+    },
+    "sync_logs": {
+      "schema": { "$ref": "#/entities/SyncLog" },
+      "description": "Koleksi logs sinkronisasi data ke pusat"
+    }
+  }
+}

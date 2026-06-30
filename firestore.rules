@@ -1,0 +1,169 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // 1. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Global security helpers
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerifiedUser() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
+        request.auth.token.email == 'intelijenhukumsipil@gmail.com'
+      );
+    }
+
+    // --- CASES COLLECTION ---
+    match /cases/{caseId} {
+      allow get: if isSignedIn() && isValidId(caseId) && (
+        existing().userId == request.auth.uid || 
+        isAdmin() ||
+        exists(/databases/$(database)/documents/members/$(request.auth.uid))
+      );
+      
+      allow list: if isSignedIn() && (
+        resource.data.userId == request.auth.uid || 
+        isAdmin() ||
+        exists(/databases/$(database)/documents/members/$(request.auth.uid))
+      );
+
+      function isValidCase(data) {
+        return data.keys().hasAll(['id', 'ticketNumber', 'title', 'category', 'reporterName', 'reporterContact', 'isAnonymous', 'location', 'chronology', 'dateSubmitted', 'status', 'userId'])
+          && data.keys().size() <= 15
+          && data.id is string && data.id.size() <= 128
+          && data.ticketNumber is string && data.ticketNumber.size() <= 50
+          && data.title is string && data.title.size() <= 200
+          && data.category is string && data.category.size() <= 100
+          && data.reporterName is string && data.reporterName.size() <= 100
+          && data.reporterContact is string && data.reporterContact.size() <= 100
+          && data.isAnonymous is bool
+          && data.location is string && data.location.size() <= 200
+          && data.chronology is string && data.chronology.size() <= 10000
+          && data.dateSubmitted is string
+          && data.status is string && data.status.size() <= 50;
+      }
+
+      allow create: if isVerifiedUser() 
+        && isValidId(caseId)
+        && isValidCase(incoming())
+        && incoming().userId == request.auth.uid
+        && incoming().status == 'diterima';
+
+      allow update: if isVerifiedUser()
+        && isValidId(caseId)
+        && isValidCase(incoming())
+        && (
+          // Action 1: Owner updates case in received state
+          (existing().userId == request.auth.uid && existing().status == 'diterima' && incoming().userId == request.auth.uid && incoming().status == 'diterima' && incoming().diff(existing()).affectedKeys().hasOnly(['title', 'category', 'location', 'chronology', 'reporterName', 'reporterContact', 'isAnonymous'])) ||
+          // Action 2: Member or Admin processes the case (status, aiAnalysis)
+          ((isAdmin() || exists(/databases/$(database)/documents/members/$(request.auth.uid))) && incoming().userId == existing().userId && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'aiAnalysis', 'evidenceFiles', 'evidenceCount']))
+        );
+
+      allow delete: if false; // Cases ledger is immutable
+    }
+
+    // --- PUBLICATIONS COLLECTION ---
+    match /publications/{pubId} {
+      allow read: if true; // Publicly readable articles
+
+      function isValidPub(data) {
+        return data.keys().hasAll(['id', 'title', 'summary', 'content', 'date', 'author', 'category'])
+          && data.keys().size() <= 10
+          && data.id is string && data.id.size() <= 128
+          && data.title is string && data.title.size() <= 200
+          && data.summary is string && data.summary.size() <= 500
+          && data.content is string && data.content.size() <= 50000
+          && data.author is string && data.author.size() <= 100
+          && data.category is string && data.category.size() <= 100;
+      }
+
+      allow create: if isVerifiedUser() && isAdmin()
+        && isValidId(pubId)
+        && isValidPub(incoming());
+
+      allow update: if isVerifiedUser() && isAdmin()
+        && isValidId(pubId)
+        && isValidPub(incoming());
+
+      allow delete: if isVerifiedUser() && isAdmin();
+    }
+
+    // --- MEMBERS COLLECTION ---
+    match /members/{memberId} {
+      allow read: if isSignedIn();
+
+      function isValidMember(data) {
+        return data.keys().hasAll(['id', 'name', 'role', 'organization', 'location', 'isVerified', 'userId'])
+          && data.keys().size() <= 8
+          && data.id is string && data.id.size() <= 128
+          && data.name is string && data.name.size() <= 100
+          && data.role is string && data.role.size() <= 100
+          && data.organization is string && data.organization.size() <= 100
+          && data.location is string && data.location.size() <= 100
+          && data.isVerified is bool
+          && data.userId is string && data.userId.size() <= 128;
+      }
+
+      allow create: if isVerifiedUser()
+        && isValidId(memberId)
+        && isValidMember(incoming())
+        && incoming().userId == request.auth.uid
+        && incoming().isVerified == false; // Forbid self-verification
+
+      allow update: if isVerifiedUser()
+        && isValidId(memberId)
+        && isValidMember(incoming())
+        && (
+          // Action 1: Self edit details
+          (existing().userId == request.auth.uid && incoming().userId == request.auth.uid && incoming().isVerified == existing().isVerified && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'role', 'organization', 'location'])) ||
+          // Action 2: Admin verifies/manages members
+          isAdmin()
+        );
+
+      allow delete: if isVerifiedUser() && isAdmin();
+    }
+
+    // --- SYNC LOGS COLLECTION ---
+    match /sync_logs/{logId} {
+      allow read: if isSignedIn();
+
+      function isValidLog(data) {
+        return data.keys().hasAll(['id', 'timestamp', 'action', 'detail', 'status'])
+          && data.keys().size() <= 6
+          && data.id is string && data.id.size() <= 128
+          && data.timestamp is string
+          && data.action is string && data.action.size() <= 200
+          && data.detail is string && data.detail.size() <= 1000
+          && data.status is string && data.status.size() <= 50;
+      }
+
+      allow create: if isVerifiedUser()
+        && isValidId(logId)
+        && isValidLog(incoming());
+
+      allow update, delete: if false; // Sync logs are immutable!
+    }
+  }
+}

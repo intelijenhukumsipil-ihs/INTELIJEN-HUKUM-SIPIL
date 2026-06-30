@@ -285,7 +285,29 @@ app.post("/api/cases", (req, res) => {
 // API ROUTE: Generate AI analysis for a case
 app.post("/api/cases/:id/analyze", async (req, res) => {
   const caseId = req.params.id;
-  const foundCase = cases.find(c => c.id === caseId);
+  let foundCase = cases.find(c => c.id === caseId);
+
+  // Fallback: if not found in memory, reconstruct from the request body
+  if (!foundCase) {
+    const { title, category, location, chronology, ticketNumber } = req.body;
+    if (title) {
+      foundCase = {
+        id: caseId,
+        ticketNumber: ticketNumber || "IHS-2026-TEMP",
+        title,
+        category,
+        location,
+        chronology,
+        reporterName: "Rahasia",
+        reporterContact: "-",
+        isAnonymous: true,
+        dateSubmitted: new Date().toISOString(),
+        status: "diterima",
+        evidenceCount: 0,
+        evidenceFiles: []
+      };
+    }
+  }
 
   if (!foundCase) {
     return res.status(404).json({ error: "Kasus tidak ditemukan." });

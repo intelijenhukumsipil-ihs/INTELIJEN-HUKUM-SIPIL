@@ -34,10 +34,37 @@ import SettingsSyncView from "./components/SettingsSyncView";
 import EkosistemOtonomView from "./components/EkosistemOtonomView";
 import DhnOneSystemView from "./components/DhnOneSystemView";
 
+// Firebase imports
+import { 
+  auth, 
+  db, 
+  googleProvider, 
+  OperationType, 
+  handleFirestoreError 
+} from "./firebase";
+import { 
+  User, 
+  signInWithPopup, 
+  signOut 
+} from "firebase/auth";
+import { 
+  collection, 
+  doc, 
+  setDoc, 
+  updateDoc, 
+  query, 
+  where, 
+  onSnapshot 
+} from "firebase/firestore";
+
 export default function App() {
   const [activeTab, setActiveTab] = useState<string>("home");
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   
+  // Auth State
+  const [user, setUser] = useState<User | null>(null);
+  const [isAuthLoading, setIsAuthLoading] = useState(true);
+
   // Data State
   const [cases, setCases] = useState<CaseReport[]>([]);
   const [newsList, setNewsList] = useState<NewsItem[]>(() => {
@@ -51,151 +78,315 @@ export default function App() {
   const [members, setMembers] = useState<Member[]>([]);
   const [syncLogs, setSyncLogs] = useState<{ id: string; timestamp: string; action: string; detail: string; status: string }[]>([]);
 
-  // Fetch initial seed data from backend
-  const fetchData = async () => {
-    try {
-      // Fetch cases
-      const resCases = await fetch("/api/cases");
-      if (resCases.ok) {
-        const data = await resCases.ok ? await resCases.json() : [];
-        setCases(data);
-      }
+  // Auth Listener
+  useEffect(() => {
+    const unsubscribe = auth.onAuthStateChanged((currentUser) => {
+      setUser(currentUser);
+      setIsAuthLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // Firebase Firestore Real-Time State Syncing
+  useEffect(() => {
+    if (isAuthLoading) return;
+
+    // 1. Subscribe to Publications (Publicly readable)
+    const unsubPublications = onSnapshot(collection(db, "publications"), async (snapshot) => {
+      let list: NewsItem[] = [];
+      snapshot.forEach((doc) => {
+        list.push(doc.data() as NewsItem);
+      });
+      list.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
       
-      // Fetch news
-      const resNews = await fetch("/api/news");
-      if (resNews.ok) {
-        const data = await resNews.json();
-        setNewsList(data);
+      if (snapshot.empty) {
         try {
-          localStorage.setItem("ihs_news_cache", JSON.stringify(data));
+          const res = await fetch("/api/news");
+          if (res.ok) {
+            const initialData = await res.json();
+            for (const item of initialData) {
+              await setDoc(doc(db, "publications", item.id), item);
+            }
+          }
+        } catch (err) {
+          console.error("Gagal seeding berita:", err);
+        }
+      } else {
+        setNewsList(list);
+        try {
+          localStorage.setItem("ihs_news_cache", JSON.stringify(list));
         } catch (e) {
-          console.error("Gagal menyimpan cache berita:", e);
+          console.error(e);
         }
       }
+    }, (err) => {
+      console.error("Gagal mengamati berita:", err);
+    });
 
-      // Fetch members
-      const resMembers = await fetch("/api/members");
-      if (resMembers.ok) {
-        const data = await resMembers.json();
-        setMembers(data);
-      }
+    if (!user) {
+      setCases([]);
+      setMembers([]);
+      setSyncLogs([]);
+      return () => {
+        unsubPublications();
+      };
+    }
 
-      // Fetch sync logs
-      const resLogs = await fetch("/api/sync-logs");
-      if (resLogs.ok) {
-        const data = await resLogs.json();
-        setSyncLogs(data);
+    // 2. Subscribe to Members (Auth required)
+    const unsubMembers = onSnapshot(collection(db, "members"), async (snapshot) => {
+      let list: Member[] = [];
+      snapshot.forEach((doc) => {
+        list.push(doc.data() as Member);
+      });
+      if (snapshot.empty) {
+        try {
+          const res = await fetch("/api/members");
+          if (res.ok) {
+            const initialData = await res.json();
+            for (const item of initialData) {
+              await setDoc(doc(db, "members", item.id), {
+                ...item,
+                userId: user.uid
+              });
+            }
+          }
+        } catch (err) {
+          console.error("Gagal seeding anggota:", err);
+        }
+      } else {
+        setMembers(list);
       }
+    }, (err) => {
+      console.error("Gagal mengamati anggota:", err);
+    });
+
+    // 3. Subscribe to Sync Logs (Auth required)
+    const unsubLogs = onSnapshot(collection(db, "sync_logs"), async (snapshot) => {
+      let list: any[] = [];
+      snapshot.forEach((doc) => {
+        list.push(doc.data());
+      });
+      list.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+      if (snapshot.empty) {
+        try {
+          const res = await fetch("/api/sync-logs");
+          if (res.ok) {
+            const initialData = await res.json();
+            for (const item of initialData) {
+              await setDoc(doc(db, "sync_logs", item.id), item);
+            }
+          }
+        } catch (err) {
+          console.error("Gagal seeding log:", err);
+        }
+      } else {
+        setSyncLogs(list);
+      }
+    }, (err) => {
+      console.error("Gagal mengamati log:", err);
+    });
+
+    // 4. Subscribe to Cases (Auth required)
+    const isUserAdmin = user.email === "intelijenhukumsipil@gmail.com";
+    const casesQuery = isUserAdmin 
+      ? collection(db, "cases")
+      : query(collection(db, "cases"), where("userId", "==", user.uid));
+
+    const unsubCases = onSnapshot(casesQuery, async (snapshot) => {
+      let list: CaseReport[] = [];
+      snapshot.forEach((doc) => {
+        list.push(doc.data() as CaseReport);
+      });
+      list.sort((a, b) => new Date(b.dateSubmitted).getTime() - new Date(a.dateSubmitted).getTime());
+
+      if (snapshot.empty && !isUserAdmin) {
+        try {
+          const res = await fetch("/api/cases");
+          if (res.ok) {
+            const initialData = await res.json();
+            for (const item of initialData) {
+              const newId = `case_${item.id}_${user.uid}`;
+              await setDoc(doc(db, "cases", newId), {
+                ...item,
+                id: newId,
+                userId: user.uid
+              });
+            }
+          }
+        } catch (err) {
+          console.error("Gagal seeding kasus demo:", err);
+        }
+      } else {
+        setCases(list);
+      }
+    }, (err) => {
+      console.error("Gagal mengamati kasus:", err);
+    });
+
+    return () => {
+      unsubPublications();
+      unsubMembers();
+      unsubLogs();
+      unsubCases();
+    };
+  }, [user, isAuthLoading]);
+
+  // Auth Actions
+  const handleLogin = async () => {
+    try {
+      await signInWithPopup(auth, googleProvider);
     } catch (err) {
-      console.error("Gagal memuat data awal dari server Express:", err);
+      console.error("Gagal masuk dengan Google:", err);
     }
   };
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+    } catch (err) {
+      console.error("Gagal keluar:", err);
+    }
+  };
 
   // Handler: When a new report is submitted
-  const handleCaseSubmitted = (newCase: CaseReport) => {
-    setCases(prev => [newCase, ...prev]);
-    // Refresh sync logs to show the new sync action
-    fetch("/api/sync-logs")
-      .then(res => res.json())
-      .then(data => setSyncLogs(data))
-      .catch(err => console.error(err));
+  const handleCaseSubmitted = async (newCaseData: any) => {
+    if (!user) return;
+    const caseId = `case_${Date.now()}`;
+    const ticketNumber = `IHS-2026-${String(cases.length + 1).padStart(4, "0")}`;
+    const dateSubmitted = new Date().toISOString();
+    const newCase: CaseReport = {
+      ...newCaseData,
+      id: caseId,
+      ticketNumber,
+      dateSubmitted,
+      status: "diterima",
+      userId: user.uid,
+      evidenceCount: newCaseData.evidenceFiles ? newCaseData.evidenceFiles.length : 0,
+      evidenceFiles: newCaseData.evidenceFiles || []
+    };
+
+    try {
+      await setDoc(doc(db, "cases", caseId), newCase);
+
+      const logId = `log_${Date.now()}`;
+      await setDoc(doc(db, "sync_logs", logId), {
+        id: logId,
+        timestamp: new Date().toISOString(),
+        action: "Sinkronisasi Laporan Baru",
+        detail: `Mengirim laporan terenkripsi ${ticketNumber} ke Firestore`,
+        status: "sukses"
+      });
+    } catch (err) {
+      handleFirestoreError(err, OperationType.WRITE, `cases/${caseId}`);
+    }
   };
 
   // Handler: When AI Analysis is triggered
   const handleTriggerAIAnalysis = async (caseId: string) => {
+    const targetCase = cases.find(c => c.id === caseId);
+    if (!targetCase) throw new Error("Kasus tidak ditemukan.");
+
     try {
       const res = await fetch(`/api/cases/${caseId}/analyze`, {
-        method: "POST"
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(targetCase)
       });
       if (!res.ok) throw new Error("Gagal memproses analisis hukum AI.");
       const analysisResult = await res.json();
-      
-      // Update cases local state
-      setCases(prev => prev.map(c => {
-        if (c.id === caseId) {
-          return { ...c, aiAnalysis: analysisResult };
-        }
-        return c;
-      }));
 
-      // Refresh sync logs
-      fetch("/api/sync-logs")
-        .then(res => res.json())
-        .then(data => setSyncLogs(data));
+      await updateDoc(doc(db, "cases", caseId), {
+        aiAnalysis: analysisResult
+      });
+
+      const logId = `log_${Date.now()}`;
+      await setDoc(doc(db, "sync_logs", logId), {
+        id: logId,
+        timestamp: new Date().toISOString(),
+        action: "Analisis Intelijen AI",
+        detail: `Berhasil menjalankan analisis hukum AI untuk kasus di Firestore`,
+        status: "sukses"
+      });
 
       return analysisResult;
     } catch (err) {
-      console.error(err);
-      throw err;
+      handleFirestoreError(err, OperationType.WRITE, `cases/${caseId}`);
     }
   };
 
   // Handler: Create news publication
-  const handleCreatePublication = async (newPub: Omit<NewsItem, 'id' | 'date' | 'author'>) => {
+  const handleCreatePublication = async (newPubData: Omit<NewsItem, 'id' | 'date' | 'author'>) => {
+    if (!user) throw new Error("Silakan masuk terlebih dahulu.");
+    const pubId = `pub_${Date.now()}`;
+    const newPub: NewsItem = {
+      ...newPubData,
+      id: pubId,
+      date: new Date().toISOString(),
+      author: user.displayName || "Tim Media IHS"
+    };
+
     try {
-      const res = await fetch("/api/news", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newPub)
-      });
-      if (!res.ok) throw new Error("Gagal menerbitkan rilis pers.");
-      const savedPub = await res.json();
-      setNewsList(prev => {
-        const updated = [savedPub, ...prev];
-        try {
-          localStorage.setItem("ihs_news_cache", JSON.stringify(updated));
-        } catch (e) {
-          console.error("Gagal menyimpan cache berita:", e);
-        }
-        return updated;
+      await setDoc(doc(db, "publications", pubId), newPub);
+
+      const logId = `log_${Date.now()}`;
+      await setDoc(doc(db, "sync_logs", logId), {
+        id: logId,
+        timestamp: new Date().toISOString(),
+        action: "Publikasi Informasi Baru",
+        detail: `Mengunggah rilis/edukasi '${newPub.title}' ke Firestore`,
+        status: "sukses"
       });
 
-      // Refresh sync logs
-      fetch("/api/sync-logs")
-        .then(res => res.json())
-        .then(data => setSyncLogs(data));
-
-      return savedPub;
+      return newPub;
     } catch (err) {
-      console.error(err);
-      throw err;
+      handleFirestoreError(err, OperationType.WRITE, `publications/${pubId}`);
     }
   };
 
   // Handler: Register a member
-  const handleRegisterMember = async (newMember: Omit<Member, 'id' | 'isVerified'>) => {
+  const handleRegisterMember = async (newMemberData: Omit<Member, 'id' | 'isVerified'>) => {
+    if (!user) throw new Error("Silakan masuk terlebih dahulu.");
+    const memberId = `mem_${Date.now()}`;
+    const newMember: Member = {
+      ...newMemberData,
+      id: memberId,
+      isVerified: false,
+      userId: user.uid
+    };
+
     try {
-      const res = await fetch("/api/members", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newMember)
+      await setDoc(doc(db, "members", memberId), newMember);
+
+      const logId = `log_${Date.now()}`;
+      await setDoc(doc(db, "sync_logs", logId), {
+        id: logId,
+        timestamp: new Date().toISOString(),
+        action: "Registrasi Anggota Baru",
+        detail: `Mengirim formulir verifikasi keanggotaan untuk ${newMember.name} ke Firestore`,
+        status: "sukses"
       });
-      if (!res.ok) throw new Error("Gagal mendaftarkan anggota.");
-      const savedMember = await res.json();
-      setMembers(prev => [...prev, savedMember]);
 
-      // Refresh sync logs
-      fetch("/api/sync-logs")
-        .then(res => res.json())
-        .then(data => setSyncLogs(data));
-
-      return savedMember;
+      return newMember;
     } catch (err) {
-      console.error(err);
-      throw err;
+      handleFirestoreError(err, OperationType.WRITE, `members/${memberId}`);
     }
   };
 
   // Handler: Run manual DB integrity audit
-  const handleTriggerAudit = () => {
-    fetch("/api/sync-logs")
-      .then(res => res.json())
-      .then(data => setSyncLogs(data))
-      .catch(err => console.error(err));
+  const handleTriggerAudit = async () => {
+    if (!user) return;
+    const logId = `log_${Date.now()}`;
+    try {
+      await setDoc(doc(db, "sync_logs", logId), {
+        id: logId,
+        timestamp: new Date().toISOString(),
+        action: "Audit Integritas Data",
+        detail: "Memulai verifikasi database Firestore terenkripsi",
+        status: "sukses"
+      });
+    } catch (err) {
+      handleFirestoreError(err, OperationType.WRITE, `sync_logs/${logId}`);
+    }
   };
 
   // Main menu items navigation mapper
@@ -212,6 +403,28 @@ export default function App() {
     { id: "dhn_one_system", label: "DHN One System", icon: Cpu },
     { id: "pengaturan", label: "Pengaturan & Log", icon: Settings },
   ];
+
+
+  const renderAuthPrompt = (tabLabel: string) => (
+    <div className="max-w-md mx-auto my-12 bg-[#0a0a0a] border border-slate-800 rounded-2xl p-8 text-center space-y-6 shadow-2xl">
+      <div className="w-16 h-16 bg-red-950/40 border border-red-900/40 text-red-500 rounded-full flex items-center justify-center mx-auto">
+        <Lock className="w-8 h-8" />
+      </div>
+      <div className="space-y-2">
+        <h3 className="text-lg font-bold text-white tracking-wide uppercase">Akses Terenkripsi Diperlukan</h3>
+        <p className="text-xs text-slate-400 leading-relaxed">
+          Untuk mengakses halaman <span className="text-red-500 font-bold font-mono">{tabLabel}</span>, Anda harus masuk ke sistem komando IHS menggunakan akun Google terverifikasi.
+        </p>
+      </div>
+      <button
+        onClick={handleLogin}
+        className="w-full py-3 bg-red-700 hover:bg-red-600 active:bg-red-800 text-white font-mono font-bold text-xs rounded-xl tracking-widest transition cursor-pointer flex items-center justify-center gap-2 uppercase shadow-lg shadow-red-950/40"
+      >
+        <ShieldCheck className="w-4 h-4" />
+        Masuk Dengan Akun Google
+      </button>
+    </div>
+  );
 
   return (
     <div className="min-h-screen text-slate-100 flex flex-col font-sans" style={{ backgroundColor: "#050505" }}>
@@ -231,18 +444,39 @@ export default function App() {
         {/* Global connection/security state */}
         <div className="hidden lg:flex items-center gap-4">
           <div className="flex items-center gap-1 px-2.5 py-1 bg-slate-900 border border-slate-800 rounded-lg text-[10px] text-slate-400 font-mono">
-            <Lock className="w-3.5 h-3.5 text-red-600 mr-1" />
-            E2EE SSL 256-BIT
+            <Lock className="w-3.5 h-3.5 text-green-500 mr-1" />
+            TEROTENTIKASI
           </div>
-          <div className="flex items-center gap-3">
-            <div className="text-right leading-none">
-              <p className="text-xs font-bold text-white uppercase tracking-tight">Pusat Komando IHS</p>
-              <p className="text-[9px] text-red-500 font-mono">Akses Tingkat Admin</p>
+          {isAuthLoading ? (
+            <div className="w-5 h-5 rounded-full border-2 border-t-red-600 border-slate-800 animate-spin"></div>
+          ) : user ? (
+            <div className="flex items-center gap-3">
+              <div className="text-right leading-none">
+                <p className="text-xs font-bold text-white uppercase tracking-tight">{user.displayName || "Operator IHS"}</p>
+                <p className="text-[9px] text-slate-400 font-mono max-w-[150px] truncate">{user.email}</p>
+              </div>
+              {user.photoURL ? (
+                <img src={user.photoURL} alt="Avatar" className="h-8 w-8 rounded-full border border-slate-700" referrerPolicy="no-referrer" />
+              ) : (
+                <div className="h-8 w-8 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center font-bold text-xs text-slate-200">
+                  {user.displayName ? user.displayName.substring(0, 2).toUpperCase() : "IHS"}
+                </div>
+              )}
+              <button
+                onClick={handleLogout}
+                className="text-[10px] text-red-500 hover:text-red-400 font-bold tracking-wider font-mono uppercase bg-slate-900 border border-slate-800 rounded px-2.5 py-1.5 cursor-pointer transition"
+              >
+                KELUAR
+              </button>
             </div>
-            <div className="h-8 w-8 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center font-bold text-xs text-slate-200">
-              AD
-            </div>
-          </div>
+          ) : (
+            <button
+              onClick={handleLogin}
+              className="px-3 py-1.5 bg-red-700 hover:bg-red-600 text-white text-[10px] font-bold font-mono tracking-wider rounded uppercase cursor-pointer transition shadow-md shadow-red-950/20"
+            >
+              MASUK AKUN
+            </button>
+          )}
         </div>
 
         {/* Mobile menu trigger */}
@@ -327,8 +561,46 @@ export default function App() {
         {/* Mobile menu panel overlay */}
         {isMobileMenuOpen && (
           <div className="fixed inset-0 top-[60px] bg-[#050505]/95 backdrop-blur-md z-20 lg:hidden flex flex-col p-4 space-y-4">
+            
+            {/* Mobile Auth Status Block */}
+            <div className="border-b border-slate-800 pb-4 mb-2 text-left">
+              {isAuthLoading ? (
+                <div className="text-xs text-slate-500 font-mono">Memuat otentikasi...</div>
+              ) : user ? (
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    {user.photoURL ? (
+                      <img src={user.photoURL} alt="Avatar" className="h-9 w-9 rounded-full border border-slate-700" referrerPolicy="no-referrer" />
+                    ) : (
+                      <div className="h-9 w-9 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center font-bold text-xs text-slate-200">
+                        {user.displayName ? user.displayName.substring(0, 2).toUpperCase() : "IHS"}
+                      </div>
+                    )}
+                    <div className="leading-tight">
+                      <p className="text-xs font-bold text-white uppercase">{user.displayName || "Operator"}</p>
+                      <p className="text-[10px] text-slate-400 font-mono truncate max-w-[165px]">{user.email}</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => { handleLogout(); setIsMobileMenuOpen(false); }}
+                    className="px-2.5 py-1.5 bg-slate-900 border border-slate-800 text-[10px] text-red-500 font-bold font-mono rounded uppercase cursor-pointer hover:bg-slate-800"
+                  >
+                    KELUAR
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => { handleLogin(); setIsMobileMenuOpen(false); }}
+                  className="w-full py-2.5 bg-red-700 hover:bg-red-600 text-white text-xs font-bold font-mono tracking-wider rounded uppercase cursor-pointer flex items-center justify-center gap-2"
+                >
+                  <ShieldCheck className="w-4 h-4" />
+                  MASUK DENGAN GOOGLE
+                </button>
+              )}
+            </div>
+
             <div className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block font-mono">Navigasi Menu Utama:</div>
-            <nav className="grid grid-cols-1 gap-1">
+            <nav className="grid grid-cols-1 gap-1 overflow-y-auto max-h-[50vh]">
               {menuItems.map((item) => {
                 const Icon = item.icon;
                 const isActive = activeTab === item.id;
@@ -352,7 +624,7 @@ export default function App() {
               })}
             </nav>
 
-            <div className="bg-red-950/10 border border-red-900/30 p-4 rounded-xl space-y-2.5 text-center font-mono mt-auto">
+            <div className="bg-red-950/10 border border-red-900/30 p-4 rounded-xl space-y-2.5 text-center font-mono mt-auto shrink-0">
               <div className="text-[10px] font-bold text-red-500 uppercase tracking-widest block">HOTLINE ADUAN WHATSAPP</div>
               <div className="text-sm font-bold text-white">0852-2232-2254</div>
               <a
@@ -382,31 +654,41 @@ export default function App() {
           )}
 
           {activeTab === "lapor" && (
-            <ReportFormView 
-              onCaseSubmitted={handleCaseSubmitted} 
-              onNavigate={(tab) => setActiveTab(tab)}
-            />
+            user ? (
+              <ReportFormView 
+                onCaseSubmitted={handleCaseSubmitted} 
+                onNavigate={(tab) => setActiveTab(tab)}
+              />
+            ) : renderAuthPrompt("Lapor Kasus")
           )}
 
           {activeTab === "investigasi" && (
-            <InvestigationView 
-              cases={cases} 
-              onTriggerAIAnalysis={handleTriggerAIAnalysis}
-            />
+            user ? (
+              <InvestigationView 
+                cases={cases} 
+                onTriggerAIAnalysis={handleTriggerAIAnalysis}
+              />
+            ) : renderAuthPrompt("Investigasi")
           )}
 
           {activeTab === "bukti" && (
-            <EvidenceVaultView 
-              cases={cases} 
-            />
+            user ? (
+              <EvidenceVaultView 
+                cases={cases} 
+              />
+            ) : renderAuthPrompt("Bukti & Data")
           )}
 
           {activeTab === "hukum" && (
-            <LegalServicesView />
+            user ? (
+              <LegalServicesView />
+            ) : renderAuthPrompt("Layanan Hukum")
           )}
 
           {activeTab === "konsultasi" && (
-            <ConsultationView />
+            user ? (
+              <ConsultationView />
+            ) : renderAuthPrompt("Konsultasi AI")
           )}
 
           {activeTab === "media" && (
@@ -417,10 +699,12 @@ export default function App() {
           )}
 
           {activeTab === "jaringan" && (
-            <JaringanAnggotaView 
-              members={members} 
-              onRegisterMember={handleRegisterMember}
-            />
+            user ? (
+              <JaringanAnggotaView 
+                members={members} 
+                onRegisterMember={handleRegisterMember}
+              />
+            ) : renderAuthPrompt("Jaringan & Anggota")
           )}
 
           {activeTab === "ekosistem_otonom" && (
@@ -432,10 +716,12 @@ export default function App() {
           )}
 
           {activeTab === "pengaturan" && (
-            <SettingsSyncView 
-              syncLogs={syncLogs} 
-              onTriggerAudit={handleTriggerAudit}
-            />
+            user ? (
+              <SettingsSyncView 
+                syncLogs={syncLogs} 
+                onTriggerAudit={handleTriggerAudit}
+              />
+            ) : renderAuthPrompt("Pengaturan & Log")
           )}
 
         </main>

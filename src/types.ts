@@ -54,4 +54,5 @@ export interface Member {
   organization: string;
   location: string;
   isVerified: boolean;
+  userId?: string;
 }
